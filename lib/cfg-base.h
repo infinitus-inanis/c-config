@@ -33,6 +33,8 @@ typedef enum {
 #define CFG_TID_u16 u16
 #define CFG_TID_u32 u32
 #define CFG_TID_u64 u64
+#define CFG_TID_f32 f32
+#define CFG_TID_f64 f64
 #define CFG_TID_ptr ptr
 #define CFG_TID_obj obj
 
@@ -45,6 +47,8 @@ typedef enum {
   gen(CFG_TID_u16)eol             \
   gen(CFG_TID_u32)eol             \
   gen(CFG_TID_u64)eol             \
+  gen(CFG_TID_f32)eol             \
+  gen(CFG_TID_f64)eol             \
   gen(CFG_TID_ptr)eol             \
   gen(CFG_TID_obj)eol
 
@@ -60,6 +64,9 @@ typedef uint8_t  CFG_TYPE(CFG_TID_u08);
 typedef uint16_t CFG_TYPE(CFG_TID_u16);
 typedef uint32_t CFG_TYPE(CFG_TID_u32);
 typedef uint64_t CFG_TYPE(CFG_TID_u64);
+
+typedef float    CFG_TYPE(CFG_TID_f32);
+typedef double   CFG_TYPE(CFG_TID_f64);
 
 typedef void *   CFG_TYPE(CFG_TID_ptr);
 typedef void *   CFG_TYPE(CFG_TID_obj);
@@ -178,6 +185,15 @@ cfg_ctx_create(void           *data,
 
 void
 cfg_ctx_destroy(cfg_ctx_t *ctx);
+
+cfg_ret
+cfg_ctx_file_bind(cfg_ctx_t *ctx, char const *path);
+
+cfg_ret
+cfg_ctx_file_save(cfg_ctx_t *ctx);
+
+cfg_ret
+cfg_ctx_file_load(cfg_ctx_t *ctx);
 
 
 #define CFG_CTX_OP_SET_NAME(tid) CONCATENATE(cfg_ctx_set_by_key_, tid)

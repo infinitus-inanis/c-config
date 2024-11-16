@@ -1,7 +1,7 @@
 CC = gcc
 AR = ar
 
-CCF = -Werror -Wall -Wextra
+CCF = -Werror -Wall -Wextra -g -ggdb -gdwarf
 
 CFG_DIR = lib
 CFG_LIB = $(CFG_DIR)/libcfg.a

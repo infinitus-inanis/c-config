@@ -1,33 +1,40 @@
 #ifndef __CFG_TEST_H__
 #define __CFG_TEST_H__
 
-#include "cfg-base.h"
+#include "lib/cfg-base.h"
 
-enum temp_mode {
-  TEMP_MODE_INVALID = -1,
-  TEMP_MODE_AUTO    =  0,
-  TEMP_MODE_MANUAL  =  1,
+struct type_obj {
+  cfg_s08 huh;
 };
 
-enum temp_cfg_upd {
-  TEMP_CFG_UPD_MODE            = CFG_UPD_FLAG(0),
-  TEMP_CFG_UPD_MANUAL_STRENGTH = CFG_UPD_FLAG(1),
+#define TYPE_CFG_UPD_NAME(tid) CONCATENATE(TYPE_CFG_UPD_, tid)
 
-  TEMP_CFG_UPD_ALL = CFG_UPD_FLAG_ALL
+enum type_cfg_upd {
+  EXPAND_CFG_TIDS(TYPE_CFG_UPD_NAME, EOL_COMMA)
 };
 
-struct temp_cfg {
-  cfg_upd upd;
+struct type_cfg {
+  cfg_upd  upd;
 
-  enum temp_mode mode;
+  cfg_s08 _s08;
+  cfg_s16 _s16;
+  cfg_s32 _s32;
+  cfg_s64 _s64;
 
-  struct {
-    cfg_u08 strength;
-  } manual;
+  cfg_u08 _u08;
+  cfg_u16 _u16;
+  cfg_u32 _u32;
+  cfg_u64 _u64;
+
+  cfg_f32 _f32;
+  cfg_f64 _f64;
+
+  struct type_obj *_ptr;
+  struct type_obj  _obj;
 };
 
 struct test_cfg {
-  struct temp_cfg temp;
+  struct type_cfg type;
 };
 
 cfg_ctx_t *
