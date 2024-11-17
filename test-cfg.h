@@ -3,14 +3,29 @@
 
 #include "lib/cfg-base.h"
 
+enum type_obj_upd {
+  TYPE_OBJ_UPD_HUH
+};
+
 struct type_obj {
+  cfg_upd upd;
+
   cfg_s08 huh;
 };
 
-#define TYPE_CFG_UPD_NAME(tid) CONCATENATE(TYPE_CFG_UPD_, tid)
-
 enum type_cfg_upd {
-  EXPAND_CFG_TIDS(TYPE_CFG_UPD_NAME, EOL_COMMA)
+  TYPE_CFG_UPD_s08,
+  TYPE_CFG_UPD_s16,
+  TYPE_CFG_UPD_s32,
+  TYPE_CFG_UPD_s64,
+  TYPE_CFG_UPD_u08,
+  TYPE_CFG_UPD_u16,
+  TYPE_CFG_UPD_u32,
+  TYPE_CFG_UPD_u64,
+  TYPE_CFG_UPD_f32,
+  TYPE_CFG_UPD_f64,
+  TYPE_CFG_UPD_ptr,
+  TYPE_CFG_UPD_obj,
 };
 
 struct type_cfg {
@@ -33,14 +48,20 @@ struct type_cfg {
   struct type_obj  _obj;
 };
 
+enum test_cfg_upd {
+  TEST_CFG_UPD_TYPE
+};
+
 struct test_cfg {
+  cfg_upd upd;
+
   struct type_cfg type;
 };
 
-cfg_ctx_t *
-test_cfg_ctx_create(struct test_cfg const *cfg);
+cfg_ctx *
+test_cfg_ctx_create(struct test_cfg *cfg);
 
 void
-test_cfg_ctx_destroy(cfg_ctx_t *ctx);
+test_cfg_ctx_destroy(cfg_ctx *ctx);
 
 #endif//__CFG_TEST_H__

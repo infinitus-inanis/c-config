@@ -71,12 +71,8 @@ typedef double   CFG_TYPE(CFG_TID_f64);
 typedef void *   CFG_TYPE(CFG_TID_ptr);
 typedef void *   CFG_TYPE(CFG_TID_obj);
 
-
-#define CFG_UPD_FLAG(id) (UINT64_C(1) << UINT64_C(id))
-#define CFG_UPD_FLAG_ALL (UINT64_MAX)
-
 typedef cfg_u64 cfg_upd;
-
+#define CFG_UPD(id) ((cfg_upd)(1) << (cfg_upd)(id))
 
 #define CFG_FLD_TYPE_NAME(tid) CONCATENATE(CFG_FLD_TYPE_, tid)
 
@@ -85,129 +81,84 @@ typedef enum {
 } cfg_fld_type;
 
 typedef struct {
-  cfg_fld_type type;
+  cfg_fld_type type : 8;
   cfg_u32      size;
   cfg_u32      offset;
-} cfg_fld;
-
-#define CFG_FLD(owner_type, fld_path, fld_tid)       \
-  (cfg_fld) {                                        \
-    .type   = CFG_FLD_TYPE_NAME(fld_tid),            \
-    .size   = FIELD_SIZE_OF(owner_type, fld_path),   \
-    .offset = FIELD_OFFSET_OF(owner_type, fld_path), \
-  }
-
+} cfg_fld_info;
 
 typedef struct {
-  const char *key; /* unique entry key        */
+  cfg_u08 id;
+  cfg_u32 size;
+  cfg_u32 offset;
+} cfg_upd_info;
+
+typedef struct cfg_info cfg_info;
+struct cfg_info {
+  char const *key;
+
+  cfg_fld_info fld;
+  cfg_upd_info upd;
 
   struct {
-    cfg_fld own;   /* entry own field info    */
-    cfg_fld upd;   /* entry update field info */
-  } fld;
+    cfg_info *data;
+    cfg_u32   size;
+  } children;
+};
 
-  struct {
-    void *set;     /* entry setter            */
-    void *get;     /* entry getter            */
-  } ops;
-} cfg_ent;
+#define CFG_INFO_0(cfg_type, fld_path, fld_tid, upd_path, upd_id, cfg_children, cfg_nchildren) \
+  {                                                                                            \
+    .key = #fld_path,                                                                          \
+    .fld = {                                                                                   \
+      .type   = CFG_FLD_TYPE_NAME(fld_tid),                                                    \
+      .size   = FIELD_SIZE_OF(cfg_type, fld_path),                                             \
+      .offset = FIELD_OFFSET_OF(cfg_type, fld_path),                                           \
+    },                                                                                         \
+    .upd = {                                                                                   \
+      .id     = upd_id,                                                                        \
+      .size   = FIELD_SIZE_OF(cfg_type, upd_path),                                             \
+      .offset = FIELD_OFFSET_OF(cfg_type, upd_path),                                           \
+    },                                                                                         \
+    .children = {                                                                              \
+      .data = cfg_children,                                                                    \
+      .size = cfg_nchildren,                                                                   \
+    }                                                                                          \
+  }
 
-cfg_ret
-cfg_ent_set_generic(void          *cfg,
-                    cfg_ent const *ent,
-                    void    const *val,
-                    cfg_upd const  upd_flag);
+#define CFG_INFO_1(cfg_type, fld_path, fld_tid, upd_path, upd_id) \
+  CFG_INFO_0(cfg_type, fld_path, fld_tid, upd_path, upd_id, NULL, 0)
 
-cfg_ret
-cfg_ent_get_generic(void    const *cfg,
-                    cfg_ent const *ent,
-                    void          *val);
+typedef struct cfg_ctx cfg_ctx;
 
-
-#define CFG_ENT_NAME(sfx)        CONCATENATE(__cfg_ent_,     sfx)
-#define CFG_ENT_OP_SET_NAME(sfx) CONCATENATE(__cfg_ent_set_, sfx)
-#define CFG_ENT_OP_GET_NAME(sfx) CONCATENATE(__cfg_ent_get_, sfx)
-
-#define DEFINE_CFG_ENT_OP_SET(name, tid) \
-  cfg_ret                                \
-  name(void                *cfg,         \
-       cfg_ent       const *ent,         \
-       CFG_TYPE(tid) const  val)
-
-#define DEFINE_CFG_ENT_OP_GET(name, tid) \
-  cfg_ret                                \
-  name(void          const *cfg,         \
-       cfg_ent       const *ent,         \
-       CFG_TYPE(tid)       *val)
-
-#define DECLARE_CFG_ENT(cfg_type, fld_path, fld_tid, upd_path, upd_flag) \
-  static inline                                                          \
-  DEFINE_CFG_ENT_OP_SET(CFG_ENT_OP_SET_NAME(upd_flag), fld_tid)          \
-  {                                                                      \
-    return cfg_ent_set_generic(cfg, ent, (void *)(&val), upd_flag);      \
-  }                                                                      \
-                                                                         \
-  static inline                                                          \
-  DEFINE_CFG_ENT_OP_GET(CFG_ENT_OP_GET_NAME(upd_flag), fld_tid)          \
-  {                                                                      \
-    return cfg_ent_get_generic(cfg, ent, (void *)(val));                 \
-  }                                                                      \
-                                                                         \
-  static cfg_ent CFG_ENT_NAME(upd_flag) =                                \
-  {                                                                      \
-    .key = #fld_path,                                                    \
-    .fld = {                                                             \
-      .own = CFG_FLD(cfg_type, fld_path, fld_tid),                       \
-      .upd = CFG_FLD(cfg_type, upd_path, CFG_TID_u64),                   \
-    },                                                                   \
-    .ops = {                                                             \
-      .set = (cfg_ptr)(CFG_ENT_OP_SET_NAME(upd_flag)),                   \
-      .get = (cfg_ptr)(CFG_ENT_OP_GET_NAME(upd_flag)),                   \
-    },                                                                   \
-  };
-
-#define DECLARE_CFG_ENT_PTR(cfg_type, fld_path, fld_type, upd_path, upd_flag) \
-  &CFG_ENT_NAME(upd_flag),
-
-#define DECLARE_CFG_ENTS(name, table) \
-  table(DECLARE_CFG_ENT)              \
-  static cfg_ent const *name[] = {    \
-    table(DECLARE_CFG_ENT_PTR)        \
-  };
-
-
-typedef struct cfg_ctx cfg_ctx_t;
-
-cfg_ctx_t *
-cfg_ctx_create(void           *data,
-               cfg_ent const **ents,
-               cfg_u32 const   ents_cnt);
+cfg_ctx *
+cfg_ctx_create(void     *data,
+               cfg_u32   size,
+               cfg_info *infos,
+               cfg_u32   infos_n);
 
 void
-cfg_ctx_destroy(cfg_ctx_t *ctx);
+cfg_ctx_destroy(cfg_ctx *ctx);
 
 cfg_ret
-cfg_ctx_file_bind(cfg_ctx_t *ctx, char const *path);
+cfg_ctx_bind_file(cfg_ctx *ctx, char const *path);
 
 cfg_ret
-cfg_ctx_file_save(cfg_ctx_t *ctx);
+cfg_ctx_save_file(cfg_ctx *ctx);
 
 cfg_ret
-cfg_ctx_file_load(cfg_ctx_t *ctx);
-
+cfg_ctx_load_file(cfg_ctx *ctx);
 
 #define CFG_CTX_OP_SET_NAME(tid) CONCATENATE(cfg_ctx_set_by_key_, tid)
 #define CFG_CTX_OP_GET_NAME(tid) CONCATENATE(cfg_ctx_get_by_key_, tid)
 
 #define DEFINE_CFG_CTX_OP_SET(tid)                   \
   cfg_ret                                            \
-  CFG_CTX_OP_SET_NAME(tid)(cfg_ctx_t           *ctx, \
+  CFG_CTX_OP_SET_NAME(tid)(cfg_ctx             *ctx, \
                            char          const *key, \
                            CFG_TYPE(tid) const  val)
 
 #define DEFINE_CFG_CTX_OP_GET(tid)                   \
   cfg_ret                                            \
-  CFG_CTX_OP_GET_NAME(tid)(cfg_ctx_t     const *ctx, \
+  CFG_CTX_OP_GET_NAME(tid)(cfg_ctx       const *ctx, \
                            char          const *key, \
                            CFG_TYPE(tid)       *val)
 
@@ -219,7 +170,7 @@ EXPAND_CFG_TIDS(DEFINE_CFG_CTX_OP_GET, EOL_SEMICOLON)
 
 #define DEFINE_CFG_CTX_OP_SET_BY_REF(tid)                   \
   cfg_ret                                                   \
-  CFG_CTX_OP_SET_BY_REF_NAME(tid)(cfg_ctx_t           *ctx, \
+  CFG_CTX_OP_SET_BY_REF_NAME(tid)(cfg_ctx             *ctx, \
                                   void          const *fld, \
                                   CFG_TYPE(tid) const  val)
 

@@ -1,4 +1,7 @@
+#define _GNU_SOURCE /* for asprintf */
+
 #include "cfg-base.h"
+#include "utils/list.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -11,18 +14,50 @@
 
 #define logi(fmt, args...) printf("[cfg]: "fmt "\n", ## args)
 
-cfg_ret
-cfg_ent_set_generic(void          *cfg,
-                    cfg_ent const *ent,
-                    void    const *val,
-                    cfg_upd const  upd_flag)
-{
-  void          *dst = (void    *)((cfg_u08 *)(cfg) + ent->fld.own.offset);
-  cfg_upd       *upd = (cfg_upd *)((cfg_u08 *)(cfg) + ent->fld.upd.offset);
-  void    const *src;
-  bool           cmp;
+typedef struct cfg_node cfg_node;
+struct cfg_node {
+  struct list   self;  /* node in list of all nodes */
+  cfg_node     *owner; /* pointer to predecessor    */
+  char         *path;
+  cfg_fld_info  fld;
+  cfg_upd_info  upd;
+};
 
-  switch (ent->fld.own.type) {
+#define CFG_NODE_PTR(cfg, off, type) \
+  (type *)((cfg_u08 *)(cfg) + (cfg_u32)(off))
+
+#define CFG_NODE_FLD_PTR(cfg, node, type) \
+  CFG_NODE_PTR(cfg, (node)->fld.offset, type)
+
+#define CFG_NODE_UPD_PTR(cfg, node) \
+  CFG_NODE_PTR(cfg, (node)->upd.offset, cfg_upd)
+
+inline static void
+cfg_node_clear_upd(void           *cfg,
+                   cfg_node const *node)
+{
+  *CFG_NODE_UPD_PTR(cfg, node) &= ~CFG_UPD(node->upd.id);
+}
+
+static void
+cfg_node_raise_upd(void           *cfg,
+                   cfg_node const *node)
+{
+  do {
+    *CFG_NODE_UPD_PTR(cfg, node) |= CFG_UPD(node->upd.id);
+  } while ((node = node->owner));
+}
+
+static cfg_ret
+cfg_node_set_value(void           *cfg,
+                   cfg_node const *node,
+                   void     const *pval)
+{
+  void       *dst = CFG_NODE_FLD_PTR(cfg, node, void);
+  void const *src;
+  bool        cmp;
+
+  switch (node->fld.type) {
     case CFG_FLD_TYPE_NAME(CFG_TID_s08): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_s16): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_s32): /* fallthrough */
@@ -34,8 +69,8 @@ cfg_ent_set_generic(void          *cfg,
     case CFG_FLD_TYPE_NAME(CFG_TID_f32): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_f64): {
       /* got pointer to basic value from op
-         need to copy value pointed to by 'val' */
-      src = val;
+         need to copy value pointed to by 'value' */
+      src = pval;
 
       /* basic value requires comparison */
       cmp = true;
@@ -43,8 +78,8 @@ cfg_ent_set_generic(void          *cfg,
 
     case CFG_FLD_TYPE_NAME(CFG_TID_ptr): {
       /* got pointer to pointer from op
-         need to copy address pointed to by 'val' */
-      src = val;
+         need to copy address pointed to by 'value' */
+      src = pval;
 
       /* no reason to compare pointers */
       cmp = false;
@@ -52,8 +87,8 @@ cfg_ent_set_generic(void          *cfg,
 
     case CFG_FLD_TYPE_NAME(CFG_TID_obj): {
       /* got pointer to pointer to object from op
-         need to copy value pointed to by dereferenced 'val' */
-      src = *(cfg_obj *)(val);
+         need to copy value pointed to by dereferenced 'value' */
+      src = *(cfg_obj *)(pval);
 
       /* object value requires comparison */
       cmp = true;
@@ -63,24 +98,24 @@ cfg_ent_set_generic(void          *cfg,
       return CFG_RET_INVALID;
   }
 
-  if (cmp && !memcmp(dst, src, ent->fld.own.size))
+  if (cmp && !memcmp(dst, src, node->fld.size))
     return CFG_RET_SUCCESS;
 
-  memcpy(dst, src, ent->fld.own.size);
-  *upd |= upd_flag;
+  memcpy(dst, src, node->fld.size);
+  cfg_node_raise_upd(cfg, node);
 
   return CFG_RET_SUCCESS;
 }
 
 cfg_ret
-cfg_ent_get_generic(void    const *cfg,
-                    cfg_ent const *ent,
-                    void          *val)
+cfg_node_get_value(void     const *cfg,
+                   cfg_node const *node,
+                   void           *pval)
 {
-  void const *src = (cfg_u08 *)(cfg) + ent->fld.own.offset;
+  void const *src = CFG_NODE_FLD_PTR(cfg, node, void);
   void       *dst;
 
-  switch (ent->fld.own.type) {
+  switch (node->fld.type) {
     case CFG_FLD_TYPE_NAME(CFG_TID_s08): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_s16): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_s32): /* fallthrough */
@@ -91,31 +126,32 @@ cfg_ent_get_generic(void    const *cfg,
     case CFG_FLD_TYPE_NAME(CFG_TID_u64): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_f32): /* fallthrough */
     case CFG_FLD_TYPE_NAME(CFG_TID_f64): {
-      dst = val;
+      dst = pval;
     } break;
 
     case CFG_FLD_TYPE_NAME(CFG_TID_ptr): {
-      dst = val;
+      dst = pval;
     } break;
 
     case CFG_FLD_TYPE_NAME(CFG_TID_obj): {
-      dst = *(cfg_obj **)(val);
+      dst = *(cfg_obj **)(pval);
     } break;
 
     default:
       return CFG_RET_INVALID;
   }
 
-  memcpy(dst, src, ent->fld.own.size);
+  memcpy(dst, src, node->fld.size);
 
   return CFG_RET_SUCCESS;
 }
 
 static cfg_ret
-cfg_ent_req_approve(cfg_ent const *ent, cfg_fld_type const req_type)
+cfg_node_req_check(cfg_node     const *node,
+                   cfg_fld_type const  req_type)
 {
-  cfg_fld_type const fld_type = ent->fld.own.type;
-  cfg_u32      const fld_size = ent->fld.own.size;
+  cfg_fld_type const fld_type = node->fld.type;
+  cfg_u32      const fld_size = node->fld.size;
 
   switch (req_type) {
     case CFG_FLD_TYPE_NAME(CFG_TID_s08): /* fallthrough */
@@ -156,109 +192,178 @@ cfg_ent_req_approve(cfg_ent const *ent, cfg_fld_type const req_type)
   return CFG_RET_SUCCESS;
 }
 
-
 #define PATH_MAX 4096
 
 typedef struct {
   char path[PATH_MAX];
-
 } cfg_file;
 
 struct cfg_ctx {
-  void           *data;
-  cfg_ent const **ents;
-  cfg_u32         ents_cnt;
-
-  cfg_file        file;
+  void        *data;
+  cfg_u32      size;
+  struct list  tree;
+  cfg_file     file;
 };
 
-cfg_ctx_t *
-cfg_ctx_create(void           *data,
-               cfg_ent const **ents,
-               cfg_u32 const   ents_cnt)
+static cfg_node *
+cfg_node_reify(cfg_info *info,
+               cfg_node *owner)
 {
-  cfg_ctx_t *ctx;
+  cfg_node *node = calloc(1, sizeof *node);
+  cfg_u32   i;
+
+  node->owner = owner;
+  node->fld   = info->fld;
+  node->upd   = info->upd;
+
+  if (!owner) {
+    asprintf(&node->path, "%s", info->key);
+  } else {
+    asprintf(&node->path, "%s.%s", owner->path, info->key);
+    node->fld.offset += owner->fld.offset;
+    node->upd.offset += owner->fld.offset;
+  }
+
+  if (!info->children.size
+   || !info->children.data
+  ) return node;
+
+  list_init(&node->self);
+  for (i = 0; i < info->children.size; ++i) {
+    cfg_info *cinfo = &info->children.data[i];
+    cfg_node *cnode = cfg_node_reify(cinfo, node);
+    list_insert_tail(&cnode->self, &node->self);
+  }
+
+  return node;
+}
+
+static void
+cfg_ctx_dump_nodes(cfg_ctx *ctx) {
+  cfg_node *node, *temp;
+
+  logi("ctx: dump");
+  list_for_each_data(node, &ctx->tree, self) {
+    logi("  '%s' (%p) (%p)",
+      node->path,
+      CFG_NODE_FLD_PTR(ctx->data, node, void),
+      CFG_NODE_UPD_PTR(ctx->data, node));
+    logi("    fld.type:   %d", node->fld.type);
+    logi("    fld.size:   %u", node->fld.size);
+    logi("    fld.offset: %u", node->fld.offset);
+    logi("    upd.id:     %u", node->upd.id);
+    logi("    upd.size:   %u", node->upd.size);
+    logi("    upd.offset: %u", node->upd.offset);
+
+    logi("    deps:");
+    temp = node->owner;
+    while (temp) {
+      logi("      '%s'", temp->path);
+      temp = temp->owner;
+    }
+  }
+}
+
+cfg_ctx *
+cfg_ctx_create(void     *data,
+               cfg_u32   size,
+               cfg_info *infos,
+               cfg_u32   infos_n)
+{
+  cfg_ctx *ctx;
+  cfg_u32  i;
 
   ctx = calloc(1, sizeof *ctx);
   if (!ctx)
     return NULL;
 
   ctx->data = data;
-  ctx->ents = ents;
-  ctx->ents_cnt = ents_cnt;
+  ctx->size = size;
+
+  list_init(&ctx->tree);
+  for (i = 0; i < infos_n; ++i) {
+    cfg_info *info = &infos[i];
+    cfg_node *node = cfg_node_reify(info, NULL);
+    list_insert_tail(&node->self, &ctx->tree);
+  }
 
   return ctx;
 }
 
 void
-cfg_ctx_destroy(cfg_ctx_t *ctx)
+cfg_ctx_destroy(cfg_ctx *ctx)
 {
+  cfg_node *node, *temp;
+
   if (!ctx)
     return;
+
+  list_for_each_data_safe(node, temp, &ctx->tree, self) {
+    list_unlink(&node->self);
+    free(node->path);
+    free(node);
+  }
 
   free(ctx);
 }
 
-static cfg_ent const *
-cfg_ctx_select_ent_by_key(cfg_ctx_t const *ctx, char const *key)
+static cfg_node const *
+cfg_ctx_get_node_by_key(cfg_ctx const *ctx, char const *key)
 {
-  cfg_u32 ent_i;
-
   /* TODO (butsuk_d):
      optimize this using radix-tree */
 
-  for (ent_i = 0; ent_i < ctx->ents_cnt; ++ent_i) {
-    cfg_ent const *ent = ctx->ents[ent_i];
+  cfg_node const *node;
 
-    if (!strcmp(key, ent->key))
-      return ent;
-  }
+  list_for_each_data(node, &ctx->tree, self) {
+    if (!strcmp(key, node->path))
+      return node;
+  };
 
   return NULL;
 }
 
-static cfg_ent const *
-cfg_ctx_select_ent_by_ref(cfg_ctx_t const *ctx, void const *fld)
+static cfg_node const *
+cfg_ctx_get_node_by_ref(cfg_ctx const *ctx, void const *fld)
 {
-  cfg_u32 fld_offset;
-  cfg_u32 ent_i;
-
   /* TODO (butsuk_d):
      optimize this using hashtable */
+
+  cfg_node const *node;
+  cfg_u32         fld_offset;
 
   if (fld < ctx->data)
     return NULL;
 
   fld_offset = (cfg_u08 *)(fld) - (cfg_u08 *)(ctx->data);
+  if (fld_offset >= ctx->size)
+    return NULL;
 
-  for (ent_i = 0; ent_i < ctx->ents_cnt; ++ent_i) {
-    cfg_ent const *ent = ctx->ents[ent_i];
-
-    if (ent->fld.own.offset == fld_offset)
-      return ent;
-  }
+  list_for_each_data(node, &ctx->tree, self) {
+    if (fld_offset == node->fld.offset)
+      return node;
+  };
 
   return NULL;
 }
 
 cfg_ret
-cfg_ctx_file_bind(cfg_ctx_t *ctx, char const *path)
+cfg_ctx_bind_file(cfg_ctx *ctx, char const *path)
 {
-  /* TODO (butsuk_d): make it safe */
   strncpy(ctx->file.path, path, sizeof ctx->file.path);
   return CFG_RET_SUCCESS;
 }
 
-#define CFG_CTX_FLD(ctx, ent, type) \
-  (type *)((cfg_u08 *)(ctx)->data + (ent)->fld.own.offset)
+#define CFG_CTX_FLD(ctx, node, type) \
+  (type *)((cfg_u08 *)(ctx)->data + (node)->fld.offset)
 
 #define CFG_ENT_SEP '='
 
 cfg_ret
-cfg_ctx_file_save(cfg_ctx_t *ctx)
+cfg_ctx_save_file(cfg_ctx *ctx)
 {
-  FILE    *file;
-  cfg_u32  ent_i;
+  FILE     *file;
+  cfg_node *node;
 
   if (ctx->file.path[0] == '\0')
     return CFG_RET_INVALID;
@@ -266,19 +371,17 @@ cfg_ctx_file_save(cfg_ctx_t *ctx)
   file = fopen(ctx->file.path, "w");
   fseek(file, 0, SEEK_SET);
 
-  for (ent_i = 0; ent_i < ctx->ents_cnt; ++ent_i) {
-    cfg_ent const *ent = ctx->ents[ent_i];
-
-    if (!ent->key)
+  list_for_each_data(node, &ctx->tree, self) {
+    if (!node->path)
       continue;
 
-    #define CFG_FLD_SAVE(tid, fmt)                              \
-      case CFG_FLD_TYPE_NAME(tid): {                            \
-        fprintf(file, "%s %c " fmt "\n", ent->key, CFG_ENT_SEP, \
-          *CFG_CTX_FLD(ctx, ent, CFG_TYPE(tid)));               \
+    #define CFG_FLD_SAVE(tid, fmt)                                \
+      case CFG_FLD_TYPE_NAME(tid): {                              \
+        fprintf(file, "%s %c " fmt "\n", node->path, CFG_ENT_SEP, \
+          *CFG_NODE_FLD_PTR(ctx->data, node, CFG_TYPE(tid)));     \
       } break
 
-    switch (ent->fld.own.type) {
+    switch (node->fld.type) {
       CFG_FLD_SAVE(CFG_TID_s08, "%"PRId8);
       CFG_FLD_SAVE(CFG_TID_s16, "%"PRId16);
       CFG_FLD_SAVE(CFG_TID_s32, "%"PRId32);
@@ -290,11 +393,11 @@ cfg_ctx_file_save(cfg_ctx_t *ctx)
       CFG_FLD_SAVE(CFG_TID_f32, "%f");
       CFG_FLD_SAVE(CFG_TID_f64, "%lf");
 
-      case CFG_FLD_TYPE_NAME(CFG_TID_ptr): /* fallthrough */
-        /* no reason to write pointers it's runtime-only feature */
+      case CFG_FLD_TYPE_NAME(CFG_TID_ptr):
+        /* ignore ptrs (runtime-only feature) */
 
-      case CFG_FLD_TYPE_NAME(CFG_TID_obj): /* fallthrough */
-        /* no support for object serialization yet */
+      case CFG_FLD_TYPE_NAME(CFG_TID_obj):
+        /* ignore objs (runtime-only feature) */
 
       default:
         /* ingore invalid entries */
@@ -380,7 +483,7 @@ cfg_ctx_file_line_proc(char *line, cfg_u32 count, char **pkey, char **pval)
 }
 
 cfg_ret
-cfg_ctx_file_load(cfg_ctx_t *ctx)
+cfg_ctx_load_file(cfg_ctx *ctx)
 {
   FILE   *file;
   char    line[1024];
@@ -400,28 +503,28 @@ cfg_ctx_file_load(cfg_ctx_t *ctx)
   count = 0;
 
   while (++count, fgets(line, sizeof line - 1, file)) {
-    cfg_ent const *ent;
-    char          *key;
-    char          *val;
+    cfg_node const *node;
+    char           *key;
+    char           *val;
 
     ret = cfg_ctx_file_line_proc(line, count, &key, &val);
     if (ret != CFG_RET_SUCCESS)
       continue;
 
-    // logi("load: found entity: %s = %s", key, val);
-
-    ent = cfg_ctx_select_ent_by_key(ctx, key);
-    if (!ent) {
+    node = cfg_ctx_get_node_by_key(ctx, key);
+    if (!node) {
       logi("load: unknown entity at line %u", count);
       continue;
     }
 
-    #define CFG_FLD_LOAD(tid, fmt)                              \
-      case CFG_FLD_TYPE_NAME(tid): {                            \
-        sscanf(val, fmt, CFG_CTX_FLD(ctx, ent, CFG_TYPE(tid))); \
+    #define CFG_FLD_LOAD(tid, fmt)                           \
+      case CFG_FLD_TYPE_NAME(tid): {                         \
+        CFG_TYPE(tid) tmp;                                   \
+        sscanf(val, fmt, &tmp);                              \
+        cfg_node_set_value(ctx->data, node, (void *)(&tmp)); \
       } break
 
-    switch (ent->fld.own.type) {
+    switch (node->fld.type) {
       CFG_FLD_LOAD(CFG_TID_s08, "%"SCNd8);
       CFG_FLD_LOAD(CFG_TID_s16, "%"SCNd16);
       CFG_FLD_LOAD(CFG_TID_s32, "%"SCNd32);
@@ -434,12 +537,10 @@ cfg_ctx_file_load(cfg_ctx_t *ctx)
       CFG_FLD_LOAD(CFG_TID_f64, "%lf");
 
       case CFG_FLD_TYPE_NAME(CFG_TID_ptr):
-        /* no reason to write pointers it's runtime-only feature */
-        /* fallthrough */
+        /* ignore ptrs (runtime-only feature) */
 
       case CFG_FLD_TYPE_NAME(CFG_TID_obj):
-        /* no support for object serialization yet */
-        /* fallthrough */
+        /* ignore objs (runtime-only feature) */
 
       default:
         /* ingore invalid entries */
@@ -453,77 +554,71 @@ cfg_ctx_file_load(cfg_ctx_t *ctx)
 }
 
 
-#define CFG_ENT_SET(tid, ent) \
-  ((DEFINE_CFG_ENT_OP_SET((*), tid))(ent)->ops.set)
-
-#define CFG_ENT_GET(tid, ent) \
-  ((DEFINE_CFG_ENT_OP_GET((*), tid))(ent)->ops.get)
-
-#define DECLARE_CFG_CTX_OP_SET(tid)                         \
-  DEFINE_CFG_CTX_OP_SET(tid)                                \
-  {                                                         \
-    cfg_ent const *ent;                                     \
-    cfg_ret        ret;                                     \
-                                                            \
-    if (!ctx || !key)                                       \
-      return CFG_RET_INVALID;                               \
-                                                            \
-    ent = cfg_ctx_select_ent_by_key(ctx, key);              \
-    if (!ent)                                               \
-      return CFG_RET_UNKNOWN;                               \
-                                                            \
-    ret = cfg_ent_req_approve(ent, CFG_FLD_TYPE_NAME(tid)); \
-    if (ret != CFG_RET_SUCCESS)                             \
-      return ret;                                           \
-                                                            \
-    ret = CFG_ENT_SET(tid, ent)(ctx->data, ent, val);       \
-    return ret;                                             \
+#define DECLARE_CFG_CTX_OP_SET(tid)                             \
+  DEFINE_CFG_CTX_OP_SET(tid)                                    \
+  {                                                             \
+    cfg_node const *node;                                       \
+    cfg_ret         ret;                                        \
+                                                                \
+    if (!ctx || !key)                                           \
+      return CFG_RET_INVALID;                                   \
+                                                                \
+    node = cfg_ctx_get_node_by_key(ctx, key);                   \
+    if (!node)                                                  \
+      return CFG_RET_UNKNOWN;                                   \
+                                                                \
+    ret = cfg_node_req_check(node, CFG_FLD_TYPE_NAME(tid));     \
+    if (ret != CFG_RET_SUCCESS)                                 \
+      return ret;                                               \
+                                                                \
+    ret = cfg_node_set_value(ctx->data, node, (void *)(&val));  \
+    return ret;                                                 \
   }
 
-#define DECLARE_CFG_CTX_OP_GET(tid)                         \
-  DEFINE_CFG_CTX_OP_GET(tid)                                \
-  {                                                         \
-    cfg_ent const *ent;                                     \
-    cfg_ret        ret;                                     \
-                                                            \
-    if (!ctx || !key)                                       \
-      return CFG_RET_INVALID;                               \
-                                                            \
-    ent = cfg_ctx_select_ent_by_key(ctx, key);              \
-    if (!ent)                                               \
-      return CFG_RET_UNKNOWN;                               \
-                                                            \
-    ret = cfg_ent_req_approve(ent, CFG_FLD_TYPE_NAME(tid)); \
-    if (ret != CFG_RET_SUCCESS)                             \
-      return ret;                                           \
-                                                            \
-    ret = CFG_ENT_GET(tid, ent)(ctx->data, ent, val);       \
-    return ret;                                             \
+#define DECLARE_CFG_CTX_OP_GET(tid)                             \
+  DEFINE_CFG_CTX_OP_GET(tid)                                    \
+  {                                                             \
+    cfg_node const *node;                                       \
+    cfg_ret        ret;                                         \
+                                                                \
+    if (!ctx || !key)                                           \
+      return CFG_RET_INVALID;                                   \
+                                                                \
+    node = cfg_ctx_get_node_by_key(ctx, key);                   \
+    if (!node)                                                  \
+      return CFG_RET_UNKNOWN;                                   \
+                                                                \
+    ret = cfg_node_req_check(node, CFG_FLD_TYPE_NAME(tid));     \
+    if (ret != CFG_RET_SUCCESS)                                 \
+      return ret;                                               \
+                                                                \
+    ret = cfg_node_get_value(ctx->data, node, (void *)(val));   \
+    return ret;                                                 \
   }
 
 EXPAND_CFG_TIDS(DECLARE_CFG_CTX_OP_SET, EOL_EMPTY)
 EXPAND_CFG_TIDS(DECLARE_CFG_CTX_OP_GET, EOL_EMPTY)
 
 
-#define DECLARE_CFG_CTX_OP_SET_BY_REF(tid)                  \
-  DEFINE_CFG_CTX_OP_SET_BY_REF(tid)                         \
-  {                                                         \
-    cfg_ent const *ent;                                     \
-    cfg_ret        ret;                                     \
-                                                            \
-    if (!ctx || !fld)                                       \
-      return CFG_RET_INVALID;                               \
-                                                            \
-    ent = cfg_ctx_select_ent_by_ref(ctx, fld);              \
-    if (!ent)                                               \
-      return CFG_RET_UNKNOWN;                               \
-                                                            \
-    ret = cfg_ent_req_approve(ent, CFG_FLD_TYPE_NAME(tid)); \
-    if (ret != CFG_RET_SUCCESS)                             \
-      return ret;                                           \
-                                                            \
-    ret = CFG_ENT_SET(tid, ent)(ctx->data, ent, val);       \
-    return ret;                                             \
+#define DECLARE_CFG_CTX_OP_SET_BY_REF(tid)                      \
+  DEFINE_CFG_CTX_OP_SET_BY_REF(tid)                             \
+  {                                                             \
+    cfg_node const *node;                                       \
+    cfg_ret        ret;                                         \
+                                                                \
+    if (!ctx || !fld)                                           \
+      return CFG_RET_INVALID;                                   \
+                                                                \
+    node = cfg_ctx_get_node_by_ref(ctx, fld);                   \
+    if (!node)                                                  \
+      return CFG_RET_UNKNOWN;                                   \
+                                                                \
+    ret = cfg_node_req_check(node, CFG_FLD_TYPE_NAME(tid));     \
+    if (ret != CFG_RET_SUCCESS)                                 \
+      return ret;                                               \
+                                                                \
+    ret = cfg_node_set_value(ctx->data, node, (void *)(&val));  \
+    return ret;                                                 \
   }
 
 EXPAND_CFG_TIDS(DECLARE_CFG_CTX_OP_SET_BY_REF, EOL_EMPTY)
