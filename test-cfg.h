@@ -26,6 +26,7 @@ enum type_cfg_upd {
   TYPE_CFG_UPD_f64,
   TYPE_CFG_UPD_ptr,
   TYPE_CFG_UPD_obj,
+  TYPE_CFG_UPD_str
 };
 
 struct type_cfg {
@@ -46,16 +47,19 @@ struct type_cfg {
 
   struct type_obj *_ptr;
   struct type_obj  _obj;
+  cfg_str          _str;
 };
 
 enum test_cfg_upd {
-  TEST_CFG_UPD_TYPE
+  TEST_CFG_UPD_TYPE,
+  TEST_CFG_UPD_FAKE_VAL
 };
 
 struct test_cfg {
   cfg_upd upd;
 
   struct type_cfg type;
+  struct { cfg_u08 val; } fake;
 };
 
 cfg_ctx *

@@ -1,7 +1,7 @@
 #ifndef __STACK_H__
 #define __STACK_H__
 
-#include <list.h>
+#include "list.h"
 #include <stdbool.h>
 
 struct stack {

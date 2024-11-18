@@ -5,11 +5,16 @@ CCF = -Wall -Wextra -g -ggdb -gdwarf
 
 CFG_DIR = lib
 CFG_LIB = $(CFG_DIR)/libcfg.a
-CFG_DEP = $(CFG_DIR)/cfg-base.h 	 \
-					$(CFG_DIR)/utils/list.h  \
-					$(CFG_DIR)/utils/queue.h \
-					$(CFG_DIR)/utils/stack.h
-CFG_OBJ = $(CFG_DIR)/cfg-base.o
+
+CFG_DEP = $(CFG_DIR)/cfg-base.h 	 		 \
+					$(CFG_DIR)/utils/list.h  		 \
+					$(CFG_DIR)/utils/queue.h 		 \
+					$(CFG_DIR)/utils/stack.h 		 \
+					$(CFG_DIR)/utils/hashtable.h \
+
+CFG_OBJ = $(CFG_DIR)/cfg-base.o 			 \
+					$(CFG_DIR)/utils/hashtable.o
+
 CFG_CCF = -I$(CFG_DIR)
 
 $(CFG_DIR)/%.o: $(CFG_DIR)/%.c $(CFG_DEP)
