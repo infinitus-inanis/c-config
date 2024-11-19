@@ -6,9 +6,9 @@
 #define logi(fmt, args...) printf("[tst]: "fmt "\n", ## args)
 
 static void
-test_cfg_dump(struct test_cfg const *cfg)
+test_cfg_dump(const char *pfx, struct test_cfg const *cfg)
 {
-  logi("test_cfg (%p):", cfg);
+  logi("%s (%p):", pfx, cfg);
   logi("  .upd (%p): %#08lx",     &cfg->upd,            cfg->upd);
   logi("  .type (%p)",            &cfg->type);
   logi("    .upd (%p):  %#08lx",  &cfg->type.upd,       cfg->type.upd);
@@ -45,13 +45,14 @@ int main() {
   logi("init...");
   logi("type_obj (%p)", &obj);
   logi("  .huh: %d", obj.huh);
-  test_cfg_dump(&cfg);
+  test_cfg_dump("cfg", &cfg);
 
-  ctx = test_cfg_ctx_create(&cfg);
+  ctx = test_cfg_ctx_create();
   if (!ctx) {
     logi("test_cfg_ctx_create failure");
     return 1;
   }
+  test_cfg_ctx_bind(ctx, &cfg);
 
   if (1) {
     logi("proc (set)...");
@@ -82,7 +83,7 @@ int main() {
     logi("...success");
     logi("type_obj (%p)", &obj);
     logi("  .huh: %d", obj.huh);
-    test_cfg_dump(&cfg);
+    test_cfg_dump("cfg", &cfg);
   }
 
   if (0) {
@@ -110,7 +111,7 @@ int main() {
       goto error;
     }
     logi("...success");
-    test_cfg_dump(&tmp);
+    test_cfg_dump("cfg", &cfg);
   }
 
   if (1) {
@@ -124,7 +125,7 @@ int main() {
     logi("...success");
   }
 
-  if (1) {
+  if (0) {
     logi("proc (save_file)...");
     ret |= cfg_ctx_save_file(ctx);
 
@@ -135,13 +136,21 @@ int main() {
     logi("...success");
   }
 
-//
-//   logi("disp...");
-//   memset(&cfg, 0, sizeof cfg);
-//
-//   logi("load...");
-//   cfg_ctx_load_file(ctx);
-//   test_cfg_dump(&cfg);
+  if (1) {
+    logi("proc (load_file)...");
+    memset(&tmp, 0, sizeof tmp);
+    test_cfg_ctx_bind(ctx, &tmp);
+
+    ret |= cfg_ctx_load_file(ctx);
+    test_cfg_ctx_bind(ctx, &cfg);
+
+    if (ret != CFG_RET_SUCCESS) {
+      logi("failure: %d", ret);
+      goto error;
+    }
+    logi("...success");
+    test_cfg_dump("tmp", &tmp);
+  }
 
 error:
   test_cfg_ctx_destroy(ctx);

@@ -3,18 +3,77 @@
 #include "cfg-base.h"
 #include "utils/hashtable.h"
 
+#include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <regex.h>
 
 #include <ctype.h>
 #include <inttypes.h>
 
 #define logi(fmt, args...) printf("[cfg]: "fmt "\n", ## args)
 
-int
+#define cfg_str2tid(tid) CONCATENATE(cfg_str2, tid)
+
+static cfg_s64
+cfg_str2sXX(char const *s, char **pend, cfg_s64 min, cfg_s64 max)
+{
+  cfg_s64 ret;
+  errno = 0;
+  ret = strtoll(s, pend, 10);
+  if (ret < min) {
+    errno = ERANGE;
+    return min;
+  }
+  if (ret > max) {
+    errno = ERANGE;
+    return max;
+  }
+  return ret;
+}
+#define cfg_str2s08(s, pe) (CFG_TYPE(CFG_TID_s08)) cfg_str2sXX(s, pe, INT8_MIN,  INT8_MAX)
+#define cfg_str2s16(s, pe) (CFG_TYPE(CFG_TID_s16)) cfg_str2sXX(s, pe, INT16_MIN, INT16_MAX)
+#define cfg_str2s32(s, pe) (CFG_TYPE(CFG_TID_s32)) cfg_str2sXX(s, pe, INT32_MIN, INT32_MAX)
+#define cfg_str2s64(s, pe) (CFG_TYPE(CFG_TID_s64)) cfg_str2sXX(s, pe, INT64_MIN, INT64_MAX)
+
+static cfg_u64
+cfg_str2uXX(char const *s, char **pend, cfg_u64 max) {
+  cfg_u64 ret;
+  errno = 0;
+  if (*s == '-') {
+    errno = EINVAL;
+    return 0;
+  }
+  ret = strtoull(s, pend, 10);
+  if (ret > max) {
+    errno = ERANGE;
+    return max;
+  }
+  return ret;
+}
+#define cfg_str2u08(s, pe) (CFG_TYPE(CFG_TID_u08)) cfg_str2uXX(s, pe, UINT8_MAX)
+#define cfg_str2u16(s, pe) (CFG_TYPE(CFG_TID_u16)) cfg_str2uXX(s, pe, UINT16_MAX)
+#define cfg_str2u32(s, pe) (CFG_TYPE(CFG_TID_u32)) cfg_str2uXX(s, pe, UINT32_MAX)
+#define cfg_str2u64(s, pe) (CFG_TYPE(CFG_TID_u64)) cfg_str2uXX(s, pe, UINT64_MAX)
+
+static inline cfg_f64
+cfg_str2f64(char const *s, char **pend)
+{
+  errno = 0;
+  return strtod(s, pend);
+}
+
+static inline cfg_f32
+cfg_str2f32(char const *s, char **pend)
+{
+  errno = 0;
+  return strtof(s, pend);
+}
+
+static int
 cfg_info_cmp_by_off(cfg_info const *l, cfg_info const *r) {
   if (l->fld.off < r->fld.off)
     return -1;
@@ -35,7 +94,7 @@ struct cfg_node {
 
   cfg_node  *prev;
   cfg_node **next;
-  cfg_u32    next_n;
+  cfg_u32    nnext;
 };
 
 #define CFG_OFF_PTR(cfg, off, type) \
@@ -263,7 +322,7 @@ typedef struct {
 
 typedef struct {
   cfg_node  root;
-  cfg_u32   count;
+  cfg_u32   size;
   ht_ctx   *by_key;
   ht_ctx   *by_off;
 } cfg_tree;
@@ -274,51 +333,49 @@ typedef struct {
   void    *data;
   bool     bound;
   cfg_u32  depth;
-} dfs_node;
+} tvs_node;
 
 void
 cfg_tree_dfs(cfg_tree *tree, cfg_tree_visit_f visit, void *data)
 {
-  dfs_node *stack, curr, *temp;
+  tvs_node *stack, *stemp, scurr;
   cfg_s32   arrow;
-  cfg_node *node;
+  cfg_node *tnode;
   cfg_u32   i;
 
-  if (tree->count == 0)
+  if (tree->size == 0)
     return;
 
-  node = &tree->root;
-  if (!node->next_n)
+  tnode = &tree->root;
+  if (!tnode->nnext)
     return;
 
-  stack = calloc(tree->count, sizeof *stack);
+  stack = calloc(tree->size, sizeof *stack);
   arrow = -1;
 
-  for (i = node->next_n; i > 0; --i) {
-    temp = &stack[++arrow];
-    temp->data  = node->next[i - 1];
-    temp->bound = false;
-    temp->depth = 1;
-  }
+  stemp = &stack[++arrow];
+  stemp->data  = tnode;
+  stemp->bound = false;
+  stemp->depth = 0;
 
   while (!(arrow < 0)) {
-    curr = stack[arrow--];
-    node = curr.data;
-    if (!visit(node, curr.bound, curr.depth, data))
+    scurr = stack[arrow--];
+    tnode = scurr.data;
+    if (!visit(tnode, scurr.bound, scurr.depth, data))
       break;
 
     /* NOTE (butsuk_d):
         traverse in reverse because nodes are
         sorted by offset in a natural order */
 
-    if (!node->next_n)
+    if (!tnode->nnext)
       continue;
 
-    for (i = node->next_n; i > 0; --i) {
-      temp = &stack[++arrow];
-      temp->data  = node->next[i - 1];
-      temp->bound = node->next_n == i;
-      temp->depth = curr.depth + 1;
+    for (i = tnode->nnext; i > 0; --i) {
+      stemp = &stack[++arrow];
+      stemp->data  = tnode->next[i - 1];
+      stemp->bound = tnode->nnext == i;
+      stemp->depth = scurr.depth + 1;
     }
   }
 
@@ -326,13 +383,9 @@ cfg_tree_dfs(cfg_tree *tree, cfg_tree_visit_f visit, void *data)
 }
 
 struct cfg_ctx {
-  struct {
-    void    *ptr;
-    cfg_u32  size;
-  } cfg;
-
-  cfg_tree tree;
-  cfg_file file;
+  cfg_ptr   data;
+  cfg_tree  tree;
+  cfg_file  file;
 };
 
 static cfg_node *
@@ -362,16 +415,16 @@ cfg_tree_node_reify(cfg_info *info,
   ht_set(by_off, ht_key_int(node->ctx_fld_off), node);
   ht_set(by_key, ht_key_str(node->ctx_key),     node);
 
-  if (!info->subs)
+  if (!info->sub)
     return node;
 
   /* sort in reverse order for easy travers with dfs */
-  qsort(info->subs, info->subs_n, sizeof *info->subs, (comparison_fn_t)(cfg_info_cmp_by_off));
+  qsort(info->sub, info->nsub, sizeof *info->sub, (comparison_fn_t)(cfg_info_cmp_by_off));
 
-  node->next_n = info->subs_n;
-  node->next   = calloc(node->next_n, sizeof *node->next);
-  for (i = 0; i < info->subs_n; ++i)
-    node->next[i] = cfg_tree_node_reify(&info->subs[i], node, by_off, by_key);
+  node->nnext = info->nsub;
+  node->next   = calloc(node->nnext, sizeof *node->next);
+  for (i = 0; i < info->nsub; ++i)
+    node->next[i] = cfg_tree_node_reify(&info->sub[i], node, by_off, by_key);
 
   return node;
 }
@@ -381,9 +434,12 @@ cfg_ctx_dump_node(cfg_node *node, bool bound, cfg_u32 depth, void *data)
 {
   cfg_ctx *ctx = data;
 
+  (void)bound;
+  (void)depth;
+
   logi("'%s' (%p) (%p)", node->ctx_key,
-    CFG_NODE_FLD_PTR(ctx->cfg.ptr, node, void),
-    CFG_NODE_UPD_PTR(ctx->cfg.ptr, node));
+    CFG_NODE_FLD_PTR(ctx->data, node, void),
+    CFG_NODE_UPD_PTR(ctx->data, node));
   logi("  .fld.type: %u", node->fld.type);
   logi("  .fld.off:  %u", node->fld.off);
   logi("  .fld.size: %u", node->fld.size);
@@ -400,7 +456,7 @@ cfg_ctx_dump(cfg_ctx *ctx) {
 }
 
 cfg_ctx *
-cfg_ctx_create(void     *data,
+cfg_ctx_create(char     *type,
                cfg_u32   size,
                cfg_info *infos,
                cfg_u32   infos_n,
@@ -410,7 +466,7 @@ cfg_ctx_create(void     *data,
   cfg_tree *tree;
   cfg_u32   i;
 
-  if (!data
+  if (!type
    || !size
    || !infos
    || !infos_n
@@ -420,24 +476,29 @@ cfg_ctx_create(void     *data,
   if (!ctx)
     return NULL;
 
-  ctx->cfg.ptr  = data;
-  ctx->cfg.size = size;
-
   tree = &ctx->tree;
   tree->by_off = ht_create(HT_KEY_INT, infos_all_est_n);
   tree->by_key = ht_create(HT_KEY_STR, infos_all_est_n);
 
-  tree->root.next_n = infos_n;
-  tree->root.next   = calloc(infos_n, sizeof *tree->root.next);
+  /* config itself is a node that */
+  tree->root.key      = strdup(type);
+  tree->root.fld.type = CFG_FLD_TYPE_NAME(CFG_TID_obj);
+  tree->root.fld.off  = 0;
+  tree->root.fld.size = size;
+  tree->root.nnext    = infos_n;
+  tree->root.next     = calloc(infos_n, sizeof *tree->root.next);
 
+  /* sorting nodes by offset in natural order is crutial for
+     other parts of algorithm */
   qsort(infos, infos_n, sizeof *infos, (comparison_fn_t)(cfg_info_cmp_by_off));
 
   for (i = 0; i < infos_n; ++i)
     tree->root.next[i] = cfg_tree_node_reify(&infos[i], NULL, tree->by_off, tree->by_key);
 
   /* any of hashtables will have total count of nodes */
-  tree->count = ht_length(tree->by_off);
+  tree->size = ht_length(tree->by_off);
 
+  (void)cfg_ctx_dump;
   /* cfg_ctx_dump(ctx); */
 
   return ctx;
@@ -452,35 +513,54 @@ cfg_ctx_destroy(cfg_ctx *ctx)
   free(ctx);
 }
 
+cfg_ret
+cfg_ctx_bind_data(cfg_ctx *ctx, void *data, cfg_u32 size)
+{
+  if (ctx->tree.root.fld.size != size)
+    return CFG_RET_INVALID;
+
+  ctx->data = data;
+  return CFG_RET_SUCCESS;
+}
+
 static cfg_node const *
 cfg_ctx_get_node_by_key(cfg_ctx const *ctx, char const *key)
 {
-  return ht_get(ctx->tree.by_key, ht_key_str(key));
+  cfg_node const *node;
+
+  node = ht_get(ctx->tree.by_key, ht_key_str(key));
+  if (!node) {
+    logi("by_key: no hashtable entry for: %s", key);
+    return NULL;
+  }
+
+  return node;
 }
 
 static cfg_node const *
 cfg_ctx_get_node_by_ref(cfg_ctx const *ctx, void const *ref)
 {
   cfg_node const *node;
-  cfg_u32         ref_off;
+  cfg_u32         off;
 
-  if (ref < ctx->cfg.ptr) {
-    logi("by_ref: out of bounds: %p < %p", ref, ctx->cfg.ptr);
+  if (ref < ctx->data) {
+    logi("by_ref: out of bounds: %p < %p", ref, ctx->data);
     return NULL;
   }
 
-
-  ref_off = (cfg_u08 *)(ref) - (cfg_u08 *)(ctx->cfg.ptr);
-  if (ref_off >= ctx->cfg.size) {
-    logi("by_ref: out of bounds: %u >= %u", ref_off, ctx->cfg.size);
+  off = (cfg_u08 *)(ref) - (cfg_u08 *)(ctx->data);
+  if (off >= ctx->tree.root.fld.size) {
+    logi("by_ref: out of bounds: %u >= %u",
+      off, ctx->tree.root.fld.size);
     return NULL;
   }
 
-  node = ht_get(ctx->tree.by_off, ht_key_int(ref_off));
+  node = ht_get(ctx->tree.by_off, ht_key_int(off));
   if (!node) {
-    logi("by_ref: hashtable failed");
+    logi("by_ref: no hashtable entry for: %u", off);
     return NULL;
   }
+
   return node;
 }
 
@@ -496,21 +576,22 @@ typedef struct {
   FILE    *stream;
 } cfg_file_ctx;
 
-#define PRItab        "%*s"
-#define ARGtab(depth) ((depth) * 2), ""
+#define Indented(str)   "%*s" str
+#define IndentArg(depth) ((depth) * 2), ""
 
-bool
+static bool
 cfg_ctx_save_node(cfg_node *node, bool bound, cfg_u32 depth, void *data)
 {
   cfg_file_ctx *file   = data;
   cfg_ctx      *ctx    = file->ctx;
   FILE         *stream = file->stream;
+  bool          isroot = node == &ctx->tree.root;
 
-  #define CFG_FLD_SAVE(tid, fmt)                               \
-    case CFG_FLD_TYPE_NAME(tid): {                             \
-      fprintf(stream, PRItab".%s = " fmt ",\n",                \
-        ARGtab(depth), node->key,                              \
-        *CFG_NODE_FLD_PTR(ctx->cfg.ptr, node, CFG_TYPE(tid))); \
+  #define CFG_FLD_SAVE(tid, fmt)                            \
+    case CFG_FLD_TYPE_NAME(tid): {                          \
+      fprintf(stream, Indented(".%s = " fmt ",\n"),         \
+        IndentArg(depth), node->key,                        \
+        *CFG_NODE_FLD_PTR(ctx->data, node, CFG_TYPE(tid))); \
     } break
 
   switch (node->fld.type) {
@@ -527,7 +608,11 @@ cfg_ctx_save_node(cfg_node *node, bool bound, cfg_u32 depth, void *data)
     CFG_FLD_SAVE(CFG_TID_str, "\"%s\"");
 
     case CFG_FLD_TYPE_NAME(CFG_TID_obj): {
-      fprintf(stream, PRItab".%s = {\n", ARGtab(depth), node->key);
+      /* root node key constains structure type */
+      if (isroot)
+        fprintf(stream, Indented("(%s) {\n"), IndentArg(depth), node->key);
+      else
+        fprintf(stream, Indented(".%s = {\n"), IndentArg(depth), node->key);
     } break;
 
     case CFG_FLD_TYPE_NAME(CFG_TID_ptr):
@@ -539,7 +624,7 @@ cfg_ctx_save_node(cfg_node *node, bool bound, cfg_u32 depth, void *data)
 
   /* possible only if node was a nested object resident */
   if (bound)
-    fprintf(stream, PRItab"}\n", ARGtab(depth - 1));
+    fprintf(stream, Indented("},\n"), IndentArg(depth - 1));
 
   return true;
 }
@@ -548,6 +633,7 @@ cfg_ret
 cfg_ctx_save_file(cfg_ctx *ctx)
 {
   cfg_file_ctx file;
+  cfg_u32      size;
 
   memset(&file, 0, sizeof file);
 
@@ -561,115 +647,323 @@ cfg_ctx_save_file(cfg_ctx *ctx)
 
   fseek(file.stream, 0, SEEK_SET);
 
-  fprintf(file.stream, "%#08x {\n", ctx->cfg.size);
+  /* write config header that consists of structure size in hex */
+  size = ctx->tree.root.fld.size;
+  fprintf(file.stream, "0x%0*x\n", (int)(sizeof size * 2), size);
+
+  /* write config fields node by node */
   cfg_tree_dfs(&ctx->tree, cfg_ctx_save_node, &file);
-  fprintf(file.stream, "}\n");
 
   fclose(file.stream);
 
   return CFG_RET_SUCCESS;
 }
 
-static cfg_ret
-cfg_ctx_file_line_proc(char *line, cfg_u32 count, char **pkey, char **pval)
+typedef struct {
+  regex_t        reg;
+  char    const *exp;
+  int     const  cfl;
+  size_t         nmatch;
+} cfg_regex;
+
+typedef enum {
+  CFG_REGEX_TYPE_CFG_SIZE,
+  CFG_REGEX_TYPE_CFG_TYPE,
+
+  /* WARNING (butsuk_d):
+     This regex doesn't cover errors in keys with multiple separators
+     because POSIX doesn't support non-capturing groups. And capturing
+     ones will broke matching logic.
+     For example:
+       `.fake.0000` - is NOT a valid key for C but WILL be matched.
+       However it WILL be discarded during parsing of a config node
+       because key for config node can't be constructed invalid by design. */
+  CFG_REGEX_TYPE_CFG_FIELD
+} cfg_regex_type;
+
+static cfg_regex cfg_regex_tbl[] = {
+  [CFG_REGEX_TYPE_CFG_SIZE] = {
+    .exp = "\\s*0x([a-fA-F0-9]*)\\s*",
+    .cfl = REG_EXTENDED | REG_NEWLINE,
+    .nmatch = 2
+  },
+  [CFG_REGEX_TYPE_CFG_TYPE] = {
+    .exp = "\\s*\\((.*)\\)\\s*\\{\\s*",
+    .cfl = REG_EXTENDED | REG_NEWLINE,
+    .nmatch = 2
+  },
+  [CFG_REGEX_TYPE_CFG_FIELD] = {
+    .exp = "\\s*\\.([a-zA-Z_]+[\\.a-zA-Z0-9_]*)\\s*=\\s*(\".*\"|-?[0-9]+\\.?[0-9]*|\\{)\\s*\\,?\\s*",
+    .cfl = REG_EXTENDED | REG_NEWLINE,
+    .nmatch = 3
+  }
+};
+
+/* Works almost like `strtok()`:
+    1. if `str` is specified regexec executed and
+       full match is returned or NULL on failure
+    2. if `str` is NULL next match group is returned or NULL if none left
+   Be aware that last char after match is replaced to '\0'
+   and will be restored only on next call. */
+static char *
+cfg_regex_exec(cfg_regex_type type, char *str)
 {
-  #define is_nul_char(c) ((c) == '\0')
-  #define is_com_char(c) ((c) == '#')
-  #define is_sok_char(c) ((c) == '_' || isalpha(c))
-  #define is_kvp_char(c) ((c) == '_' || (c) == '.' || (c) == '-' || isalnum(c))
-  #define is_sep_char(c) ((c) == '=')
+  static regmatch_t  __s_match[32] = {};
+  static size_t      __s_idx = 0;
+  static char       *__s_str = NULL;
+  static char        __s_eos = '\0';
 
-  char *tmp;
+  regmatch_t *match;
 
-  if (!line)
-    return CFG_RET_INVALID;
+  if (str) {
+    cfg_regex *regex = &cfg_regex_tbl[type];
+    int        ret = 0;
+    char       err[256];
+    size_t     i;
 
-  tmp = line;
-  /* ignore noise */
-  while (!is_sok_char(*tmp)) {
-    if (is_nul_char(*tmp))
-      return CFG_RET_FAILRUE;
+    for (i = 0; i < sizeof __s_match / sizeof 0[__s_match]; ++i) {
+      __s_match[i].rm_so = -1;
+      __s_match[i].rm_eo = -1;
+    }
 
-    if (is_com_char(*tmp))
-      return CFG_RET_FAILRUE;
+    __s_idx = 0;
+    __s_str = str;
+    __s_eos = '\0';
 
-    tmp++;
+    ret = regexec(&regex->reg, __s_str, regex->nmatch, __s_match, 0);
+    if (ret != REG_NOERROR) {
+      regerror(ret, &regex->reg, err, sizeof err);
+      logi("regex: failed with error: %s", err);
+      return NULL;
+    }
+  } else {
+    /* sanity check */
+    if (__s_idx >= sizeof __s_match / sizeof 0[__s_match])
+      return NULL;
+
+    /* fix eol of previous match */
+    match = &__s_match[__s_idx - 1];
+    if (__s_eos)
+      __s_str[match->rm_eo] = __s_eos;
   }
 
-  /* found start of a key */
-  *pkey = tmp;
+  match = &__s_match[__s_idx++];
+  if (match->rm_so < 0 || match->rm_eo < 0)
+    return NULL;
 
-  do { /* ignore key body */
-    tmp++;
-    if (is_nul_char(*tmp)) {
-      logi("load: invalid line at %u (not an entry)", count);
-      return CFG_RET_FAILRUE;
-    }
-  } while (is_kvp_char(*tmp));
-
-  /* mend end-of-key termination */
-  *tmp = '\0';
-
-  do { /* search kvp separator */
-    tmp++;
-    if (is_nul_char(*tmp)) {
-      logi("load: invalid line at %u (not an entry)", count);
-      return CFG_RET_FAILRUE;
-    }
-  } while (!is_sep_char(*tmp));
-
-  do { /* ignore noise */
-    tmp++;
-    if (is_nul_char(*tmp)) {
-      logi("load: invalid line at %u (no-val entry)", count);
-      return CFG_RET_FAILRUE;
-    }
-  } while (!is_kvp_char(*tmp));
-
-  /* found start of a val */
-  *pval = tmp;
-
-  do { /* ignore val body */
-    tmp++;
-    if (is_nul_char(*tmp))
-      return CFG_RET_SUCCESS;
-
-  } while (is_kvp_char(*tmp));
-
-  /* mend end-of-val termination */
-  *tmp = '\0';
-
-  return CFG_RET_SUCCESS;
+  __s_eos = __s_str[match->rm_eo];
+  __s_str[match->rm_eo] = '\0';
+  return &__s_str[match->rm_so];
 }
+
+static void cfg_regex_ctor() __attribute__((constructor));
+static void cfg_regex_ctor() {
+  cfg_regex *r;
+  size_t     i;
+  int        ret;
+
+  for (i = 0; i < sizeof cfg_regex_tbl / sizeof 0[cfg_regex_tbl]; ++i) {
+    r = &cfg_regex_tbl[i];
+    ret = regcomp(&r->reg, r->exp, r->cfl);
+    if (ret < 0)
+      logi("regex[%zu]: failed to compile", i);
+    // else
+      // logi("regex[%zu]: compiled", i);
+  }
+}
+
+static void cfg_regex_dtor() __attribute__((destructor));
+static void cfg_regex_dtor() {
+  cfg_regex *r;
+  size_t     i;
+
+  for (i = 0; i < sizeof cfg_regex_tbl / sizeof 0[cfg_regex_tbl]; ++i) {
+    r = &cfg_regex_tbl[i];
+    regfree(&r->reg);
+    // logi("regex[%zu]: released", i);
+  }
+}
+
+#define loadlogi(_f, _l, fmt, arg...) \
+  logi("load[%s:%u] " fmt, _f, (cfg_u32)(_l), ## arg)
 
 cfg_ret
 cfg_ctx_load_file(cfg_ctx *ctx)
 {
-  cfg_file_ctx file;
-  char         line[LINE_MAX];
-  cfg_u32      line_i;
+  char    *path;
+  FILE    *stream;
+  cfg_ret  ret = CFG_RET_INVALID;
 
-  memset(&file, 0, sizeof file);
-  memset(line, 0, sizeof line);
-  line_i = 0;
-
-  if (ctx->file.path[0] == '\0')
-    return CFG_RET_INVALID;
-
-  file.ctx = ctx;
-  file.stream = fopen(ctx->file.path, "r");
-  if (!file.stream)
-    return CFG_RET_INVALID;
-
-  fseek(file.stream, 0, SEEK_SET);
-
-  while (++line_i, fgets(line, sizeof line - 1, file.stream)) {
-    char *c = line;
+  if (!ctx->tree.size) {
+    logi("load: cfg tree isn't valid");
+    return ret;
+  }
+  if (!ctx->file.path[0]) {
+    logi("load: cfg file path isn't bound");
+    return ret;
   }
 
-  fclose(file.stream);
+  path = ctx->file.path;
+  stream = fopen(path, "r");
+  if (!stream) {
+    logi("load: failed to open file at path: %s", path);
+    return ret;
+  }
 
-  return CFG_RET_SUCCESS;
+
+  fseek(stream, 0, SEEK_SET);
+  { /* parsing */
+    char     rbuf[LINE_MAX] = {};
+    cfg_u32  rlen = sizeof rbuf - 1;
+    cfg_u32  line = 0;
+    char    *str, *tmp;
+
+    { /* header */
+      cfg_u32 size;
+
+      if (line++, !fgets(rbuf, rlen, stream))
+        goto out;
+
+      str = cfg_regex_exec(CFG_REGEX_TYPE_CFG_SIZE, rbuf);
+      if (!str)
+        goto out;
+      str = cfg_regex_exec(0, NULL); /* get sub-match */
+
+      size = strtoul(str, NULL, 16);
+      if (size != ctx->tree.root.fld.size) {
+        loadlogi(path, line, "cfg size doesn't match runtime value: %u != %u",
+          size, ctx->tree.root.fld.size);
+        goto out;
+      }
+      loadlogi(path, line, "cfg size: %u", size);
+
+      memset(rbuf, 0, sizeof rbuf);
+      if (line++, !fgets(rbuf, rlen, stream))
+        goto out;
+
+      str = cfg_regex_exec(CFG_REGEX_TYPE_CFG_TYPE, rbuf);
+      if (!str)
+        goto out;
+      str = cfg_regex_exec(0, NULL); /* get sub-match */
+
+      if (strcmp(str, ctx->tree.root.key)) {
+        loadlogi(path, line, "cfg type doesn't match runtime value: %s != %s",
+          str, ctx->tree.root.key);
+        goto out;
+      }
+      loadlogi(path, line, "cfg type: %s", str);
+    }
+    { /* fields */
+      cfg_node  *base;
+      cfg_u32    i;
+
+      base = &ctx->tree.root;
+      while (line++, fgets(rbuf, rlen, stream) && base) {
+        cfg_node *node;
+
+        /* check for object group closing */
+        str = strchr(rbuf, '}');
+        if (str) {
+          base = base->prev;
+          continue;
+        }
+
+        /* check if line matches at all */
+        str = cfg_regex_exec(CFG_REGEX_TYPE_CFG_FIELD, rbuf);
+        if (!str) {
+          loadlogi(path, line, "field regex failure");
+          continue;
+        }
+
+        /* get first sub-match that is a field key */
+        str = cfg_regex_exec(0, NULL);
+        if (!str) {
+          loadlogi(path, line, "line has no key");
+          continue;
+        }
+
+        /* search for node by key */
+        for (i = 0; i < base->nnext; ++i) {
+          node = base->next[i];
+          if (!strcmp(node->key, str))
+            break;
+        }
+        if (i == base->nnext) {
+          loadlogi(path, line, "unknown key: %s", str);
+          continue;
+        }
+
+        /* get second sub-match that is a field value */
+        str = cfg_regex_exec(0, NULL);
+        if (!str) {
+          loadlogi(path, line, "line has no value");
+          continue;
+        }
+
+        #define CFG_FLD_LOAD(tid)                                       \
+          case CFG_FLD_TYPE_NAME(tid): {                                \
+            CFG_TYPE(tid) val = cfg_str2tid(tid)(str, &tmp);            \
+            cfg_ret       set;                                          \
+            if (errno == EINVAL || !tmp || *tmp || tmp == str) {        \
+              loadlogi(path, line,                                      \
+                "value (%s) for key (%s) of type (%s) is invalid",      \
+                str, node->key, STRINGIFY(CFG_TYPE(tid)));              \
+              break;                                                    \
+            }                                                           \
+            if (errno == ERANGE) {                                      \
+              loadlogi(path, line,                                      \
+                "value (%s) for key (%s) of type (%s) is out of range", \
+                str, node->key, STRINGIFY(CFG_TYPE(tid)));              \
+              break;                                                    \
+            }                                                           \
+            set = cfg_node_set_value(ctx->data, node, (void *)(&val));  \
+            if (set != CFG_RET_SUCCESS) {                               \
+              loadlogi(path, line,                                      \
+                "value (%s) for key (%s) of type (%s) was not set",     \
+                str, node->key, STRINGIFY(CFG_TYPE(tid)));              \
+              break;                                                    \
+            }                                                           \
+          } break;
+
+        switch (node->fld.type) {
+          EXPAND_CFG_TIDS_BASE(CFG_FLD_LOAD);
+
+          case CFG_FLD_TYPE_NAME(CFG_TID_str): {
+            cfg_str val;
+            cfg_ret set;
+            val = strchr(str,   '\"');
+            tmp = strchr(++val, '\"');
+            if (!val || !tmp) {
+              loadlogi(path, line,
+                "value (%s) for key (%s) of type (%s) is invalid",
+                str, node->key, STRINGIFY(cfg_str));
+              break;
+            }
+            *tmp = '\0';
+            set = cfg_node_set_value(ctx->data, node, (void *)(&val));
+            if (set != CFG_RET_SUCCESS) {
+              loadlogi(path, line,
+                "value (%s) for key (%s) of type (%s) was not set",
+                str, node->key, STRINGIFY(cfg_str));
+              break;
+            }
+          } break;
+
+          case CFG_FLD_TYPE_NAME(CFG_TID_obj): {
+            base = node;
+          } break;
+
+          default: {
+          } break;
+        }
+      }
+    }
+  }
+  ret = CFG_RET_SUCCESS;
+
+out:
+  fclose(stream);
+  return ret;
 }
 
 static cfg_ret
@@ -692,8 +986,7 @@ cfg_ctx_set_value_by_ref(cfg_ctx            *ctx,
   if (ret != CFG_RET_SUCCESS)
     return ret;
 
-
-  ret = cfg_node_set_value(ctx->cfg.ptr, node, pval);
+  ret = cfg_node_set_value(ctx->data, node, pval);
   return ret;
 }
 
@@ -717,7 +1010,7 @@ cfg_ctx_set_value_by_key(cfg_ctx            *ctx,
   if (ret != CFG_RET_SUCCESS)
     return ret;
 
-  ret = cfg_node_set_value(ctx->cfg.ptr, node, pval);
+  ret = cfg_node_set_value(ctx->data, node, pval);
   return ret;
 }
 
@@ -741,7 +1034,7 @@ cfg_ctx_get_value_by_key(cfg_ctx      const *ctx,
   if (ret != CFG_RET_SUCCESS)
     return ret;
 
-  ret = cfg_node_get_value(ctx->cfg.ptr, node, pval);
+  ret = cfg_node_get_value(ctx->data, node, pval);
   return ret;
 }
 

@@ -32,20 +32,27 @@ static cfg_info test_cfg_infos[] = {
 };
 
 cfg_ctx *
-test_cfg_ctx_create(struct test_cfg *cfg)
+test_cfg_ctx_create()
 {
-  cfg_u32 infos_total_n =
+  char    *type = STRINGIFY(struct test_cfg);
+  cfg_u32  size = sizeof(struct test_cfg);
+  cfg_u32  total_est =
     ARRAY_SIZE(test_cfg_infos) +
     ARRAY_SIZE(type_cfg_infos) +
     ARRAY_SIZE(type_obj_infos);
 
-  return cfg_ctx_create(cfg, sizeof *cfg,
-    test_cfg_infos, ARRAY_SIZE(test_cfg_infos),
-    0);
+  return cfg_ctx_create(
+    type, size, test_cfg_infos, ARRAY_SIZE(test_cfg_infos), total_est);
 }
 
 void
 test_cfg_ctx_destroy(cfg_ctx *ctx)
 {
   cfg_ctx_destroy(ctx);
+}
+
+void
+test_cfg_ctx_bind(cfg_ctx *ctx, struct test_cfg *cfg)
+{
+  cfg_ctx_bind_data(ctx, cfg, sizeof *cfg);
 }

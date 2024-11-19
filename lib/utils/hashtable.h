@@ -15,6 +15,8 @@
         2) HT_KEY_STR:
           C string value of any length, assumed to be null-terminated
 
+      - Existence of hashtable entry dicided by value and not by key
+
     ATTENTION:
       string keys aren't copied so..
       they MUST live longer then last use of hashtable */

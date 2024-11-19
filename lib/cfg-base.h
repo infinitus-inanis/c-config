@@ -11,8 +11,11 @@
 #define FIELD_SIZE_OF(type, member)   (size_t)(sizeof(FIELD_OF(type, member)))
 #define FIELD_OFFSET_OF(type, member) (size_t)(& FIELD_OF(type, member))
 
-#define CONCAT_IMPL(s0, s1) s0##s1
-#define CONCATENATE(s0, s1) CONCAT_IMPL(s0, s1)
+#define __PRIM_CONCAT(s0, s1) s0##s1
+#define CONCATENATE(s0, s1)   __PRIM_CONCAT(s0, s1)
+
+#define __PRIM_STRINGIFY(s) #s
+#define STRINGIFY(s)        __PRIM_STRINGIFY(s)
 
 typedef enum {
   CFG_RET_FAILRUE = -1,
@@ -41,7 +44,7 @@ typedef enum {
    1. On 'get' a new string will be allocated for user
       and config value will be copied into it.
    2. On 'set' a config value will be realloced (if needed)
-      and passed user  value will be copied into it.
+      and passed user value will be copied into it.
       Be aware that holding on to original string pointer
       is dangerous due to possible reallocation.  */
 #define CFG_TID_str str
@@ -52,6 +55,7 @@ typedef enum {
 #define CFG_TID_obj obj
 
 /* TODO (butsuk_d): CFG_TID_hex ? */
+/* TODO (butsuk_d): CFG_TID_arr ? */
 
 #define EXPAND_CFG_TIDS_BASE(gen) \
   gen(CFG_TID_s08)                \
@@ -103,6 +107,7 @@ typedef cfg_u64 cfg_upd;
 
 typedef enum {
   EXPAND_CFG_TIDS_ALL(DEFINE_CFG_FLD_TYPE)
+  CFG_FLD_TYPE_COUNT
 } cfg_fld_type;
 
 typedef struct {
@@ -124,25 +129,25 @@ struct cfg_info {
   cfg_fld_info fld;
   cfg_upd_info upd;
 
-  cfg_info *subs;
-  cfg_u32   subs_n;
+  cfg_info *sub;
+  cfg_u32   nsub;
 };
 
-#define CFG_INFO_0(cfg_type, fld_path, fld_tid, upd_path, upd_id, cfg_subs, cfg_subs_n) \
-  {                                                                                     \
-    .key = #fld_path,                                                                   \
-    .fld = {                                                                            \
-      .type = CFG_FLD_TYPE_NAME(fld_tid),                                               \
-      .off  = FIELD_OFFSET_OF(cfg_type, fld_path),                                      \
-      .size = FIELD_SIZE_OF(cfg_type, fld_path),                                        \
-    },                                                                                  \
-    .upd = {                                                                            \
-      .id   = upd_id,                                                                   \
-      .off  = FIELD_OFFSET_OF(cfg_type, upd_path),                                      \
-      .size = FIELD_SIZE_OF(cfg_type, upd_path),                                        \
-    },                                                                                  \
-    .subs = cfg_subs,                                                                   \
-    .subs_n = cfg_subs_n,                                                               \
+#define CFG_INFO_0(cfg_type, fld_path, fld_tid, upd_path, upd_id, cfg_sub, cfg_nsub) \
+  {                                                                                  \
+    .key = #fld_path,                                                                \
+    .fld = {                                                                         \
+      .type = CFG_FLD_TYPE_NAME(fld_tid),                                            \
+      .off  = FIELD_OFFSET_OF(cfg_type, fld_path),                                   \
+      .size = FIELD_SIZE_OF(cfg_type, fld_path),                                     \
+    },                                                                               \
+    .upd = {                                                                         \
+      .id   = upd_id,                                                                \
+      .off  = FIELD_OFFSET_OF(cfg_type, upd_path),                                   \
+      .size = FIELD_SIZE_OF(cfg_type, upd_path),                                     \
+    },                                                                               \
+    .sub = cfg_sub,                                                                  \
+    .nsub = cfg_nsub,                                                                \
   }
 
 #define CFG_INFO_1(cfg_type, fld_path, fld_tid, upd_path, upd_id) \
@@ -151,7 +156,7 @@ struct cfg_info {
 typedef struct cfg_ctx cfg_ctx;
 
 cfg_ctx *
-cfg_ctx_create(void     *data,
+cfg_ctx_create(char     *type,
                cfg_u32   size,
                cfg_info *infos,
                cfg_u32   infos_n,
@@ -159,6 +164,9 @@ cfg_ctx_create(void     *data,
 
 void
 cfg_ctx_destroy(cfg_ctx *ctx);
+
+cfg_ret
+cfg_ctx_bind_data(cfg_ctx *ctx, void *data, cfg_u32 size);
 
 cfg_ret
 cfg_ctx_bind_file(cfg_ctx *ctx, char const *path);

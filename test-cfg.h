@@ -63,9 +63,12 @@ struct test_cfg {
 };
 
 cfg_ctx *
-test_cfg_ctx_create(struct test_cfg *cfg);
+test_cfg_ctx_create();
 
 void
 test_cfg_ctx_destroy(cfg_ctx *ctx);
+
+void
+test_cfg_ctx_bind(cfg_ctx *ctx, struct test_cfg *cfg);
 
 #endif//__CFG_TEST_H__
