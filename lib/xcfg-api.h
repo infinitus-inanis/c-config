@@ -1,7 +1,7 @@
 #ifndef __XCFG_API_H__
 #define __XCFG_API_H__
 
-#include "xcfg-api-types.h"
+#include "xcfg-types.h"
 
 xcfg *
 xcfg_create(xcfg_str  type_name,
@@ -11,6 +11,9 @@ xcfg_create(xcfg_str  type_name,
 
 void
 xcfg_destroy(xcfg *ctx);
+
+void
+xcfg_dump(xcfg *ctx);
 
 xcfg_ret
 xcfg_set_data(xcfg *ctx, xcfg_ptr data, xcfg_u32 size);

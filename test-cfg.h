@@ -36,12 +36,10 @@ struct type_cfg {
   xcfg_s16 _s16;
   xcfg_s32 _s32;
   xcfg_s64 _s64;
-
   xcfg_u08 _u08;
   xcfg_u16 _u16;
   xcfg_u32 _u32;
   xcfg_u64 _u64;
-
   xcfg_f32 _f32;
   xcfg_f64 _f64;
 

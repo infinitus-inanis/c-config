@@ -1,7 +1,7 @@
 #ifndef __XCFG_FLD_H__
 #define __XCFG_FLD_H__
 
-#include "xcfg-api-types.h"
+#include "xcfg-types.h"
 
 /* Resolves type suffix to type field type id. */
 #define XCFG_FLD_TYPE(sfx) CONCATENATE(XCFG_FLD_TYPE_, sfx)

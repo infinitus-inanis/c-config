@@ -8,15 +8,19 @@ CFG_LIB = $(CFG_DIR)/libxcfg.a
 
 CFG_DEP = \
 	$(CFG_DIR)/utils/hashtable.h \
-	$(CFG_DIR)/utils/traverse.h	 \
-	$(CFG_DIR)/xcfg-base.h 	 		 \
-	$(CFG_DIR)/xcfg-api-types.h	 \
-	$(CFG_DIR)/xcfg-api.h				 \
-	$(CFG_DIR)/xcfg-fld.h
+	$(CFG_DIR)/utils/traverse.h  \
+	$(CFG_DIR)/xcfg-utils.h      \
+	$(CFG_DIR)/xcfg-types.h      \
+	$(CFG_DIR)/xcfg-fld.h        \
+	$(CFG_DIR)/xcfg-tree.h       \
+	$(CFG_DIR)/xcfg-file.h       \
+	$(CFG_DIR)/xcfg-api.h
 
 CFG_OBJ = \
 	$(CFG_DIR)/utils/hashtable.o \
 	$(CFG_DIR)/utils/traverse.o  \
+	$(CFG_DIR)/xcfg-tree.o       \
+	$(CFG_DIR)/xcfg-file.o       \
 	$(CFG_DIR)/xcfg-api.o
 
 CFG_CCF = -I$(CFG_DIR)

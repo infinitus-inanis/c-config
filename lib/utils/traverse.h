@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef struct {
+typedef struct tvs_node {
   void     *data;
   uint32_t  depth;
 

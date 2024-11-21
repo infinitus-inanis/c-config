@@ -1,7 +1,7 @@
 #ifndef __XCFG_TYPES_H__
 #define __XCFG_TYPES_H__
 
-#include "xcfg-base.h"
+#include "xcfg-utils.h"
 
 #include <stddef.h>
 #include <stdint.h>
