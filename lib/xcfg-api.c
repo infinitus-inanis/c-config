@@ -9,7 +9,7 @@
 #include <memory.h>
 
 #include <stdio.h>
-#define logi(fmt, args...) printf("[cfg]: "fmt "\n", ## args)
+#define logi(fmt, args...) printf("[xcfg]: "fmt "\n", ## args)
 
 struct xcfg {
   struct {
@@ -52,6 +52,7 @@ xcfg_destroy(xcfg *ctx)
   if (!ctx)
     return;
 
+  xcfg_file_dispose(&ctx->file);
   xcfg_tree_dispose(&ctx->tree);
   free(ctx);
 }
@@ -62,7 +63,7 @@ xcfg_dump(xcfg *ctx)
   logi("type.name: %s", ctx->type.name);
   logi("type.data: %p", ctx->type.data);
   logi("type.size: %u", ctx->type.size);
-  xcfg_tree_dump(&ctx->tree, ctx->type.data);
+  xcfg_tree_dump(&ctx->tree);
 }
 
 xcfg_ret
@@ -90,13 +91,13 @@ xcfg_bind_file(xcfg *ctx, xcfg_str path)
 xcfg_ret
 xcfg_save_file(xcfg *ctx)
 {
-  return xcfg_file_save(&ctx->file);
+  return xcfg_file_save(&ctx->file, &ctx->tree, ctx->type.data);
 }
 
 xcfg_ret
 xcfg_load_file(xcfg *ctx)
 {
-  return xcfg_file_load(&ctx->file);
+  return xcfg_file_load(&ctx->file, &ctx->tree, ctx->type.data);
 }
 
 static xcfg_node *

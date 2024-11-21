@@ -13,7 +13,7 @@ test_cfg_dump(char *pfx, struct test_cfg *cfg)
   logii(1, ".upd: 0x%08lx", cfg->upd);
   logii(1, ".fake.val: %u", cfg->fake.val);
   logii(1, ".type");
-  logii(2, ".upd: %lx", cfg->type.upd);
+  logii(2, ".upd: 0x%08lx", cfg->type.upd);
   logii(2, "._s08: %d", cfg->type._s08);
   logii(2, "._s16: %d", cfg->type._s16);
   logii(2, "._s32: %d", cfg->type._s32);
@@ -81,10 +81,10 @@ int main() {
       goto error;
     }
     logi("...success");
-    test_cfg_dump("cfg", &cfg);
+    // test_cfg_dump("cfg", &cfg);
   }
 
-  if (1) {
+  if (0) {
     logi("proc (get)...");
     ret |= xcfg_get_by_key_s08(ctx, "type._s08", &tmp.type._s08);
     ret |= xcfg_get_by_key_s16(ctx, "type._s16", &tmp.type._s16);
@@ -109,10 +109,10 @@ int main() {
       goto error;
     }
     logi("...success");
-    test_cfg_dump("cfg", &cfg);
+    test_cfg_dump("tmp", &tmp);
   }
 
-  if (0) {
+  if (1) {
     logi("proc (bind_file)...");
     ret |= xcfg_bind_file(ctx, "test.cfg");
 
@@ -123,7 +123,7 @@ int main() {
     logi("...success");
   }
 
-  if (0) {
+  if (1) {
     logi("proc (save_file)...");
     ret |= xcfg_save_file(ctx);
 

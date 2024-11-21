@@ -19,7 +19,7 @@
 
     ATTENTION:
       string keys aren't copied so..
-      they MUST live longer then last use of hashtable */
+      they MUST live longer then last use of a hashtable */
 
 typedef uint64_t ht_u64;
 typedef char *   ht_str;

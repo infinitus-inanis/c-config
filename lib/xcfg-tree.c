@@ -9,7 +9,7 @@
 #include <memory.h>
 
 #include <stdio.h>
-#define logi(fmt, args...) printf("[cfg]: "fmt "\n", ## args)
+#define logi(fmt, args...) printf("[xcfg-tree]: "fmt "\n", ## args)
 
 static int
 xcfg_fld_cmp_by_off(xcfg_fld *l, xcfg_fld *r) {
@@ -193,7 +193,25 @@ xcfg_node_get_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval)
   return XCFG_RET_SUCCESS;
 }
 
-bool
+typedef struct {
+  xcfg_node_tvs_visit_f  visit;
+  void                  *context;
+} xcfg_tree_tvs;
+
+static bool
+xcfg_node_tvs_do_visit(void *context, tvs_node *curr)
+{
+  xcfg_tree_tvs *ttvs = context;
+  xcfg_node_tvs  ntvs = {
+    .node = curr->data,
+    .depth = curr->depth,
+    .meta.bound_0 = curr->meta.next_0,
+    .meta.bound_N = curr->meta.next_N
+  };
+  return ttvs->visit(&ntvs, ttvs->context) == XCFG_RET_SUCCESS;
+}
+
+static bool
 xcfg_node_tvs_populate(void *ctx, tvs_node *curr, void ***pnext, uint32_t *nnext)
 {
   (void)ctx;
@@ -241,7 +259,8 @@ xcfg_tree_create_node(xcfg_fld *fld, xcfg_node *prev, ht_ctx *by_off, ht_ctx *by
   if (!fld->sub)
     return node;
 
-  /* sort in reverse order for easy travers with dfs */
+  /* sorting nodes by offset in natural order
+      is crutial for other parts of this system */
   qsort(fld->sub, fld->nsub, sizeof *fld->sub,
     (comparison_fn_t)(xcfg_fld_cmp_by_off));
 
@@ -293,59 +312,67 @@ xcfg_tree_build(xcfg_tree *tree,
   return XCFG_RET_SUCCESS;
 }
 
-static bool
-xcfg_node_tvs_free(void *ctx, tvs_node *curr)
+void
+xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, void *context)
 {
-  (void)ctx;
+  xcfg_tree_tvs ttvs = {
+    .visit   = visit,
+    .context = context
+  };
+  tvs_depth_first(&ttvs,
+    (void **)  (tree->root.next),
+    (uint32_t) (tree->root.nnext),
+    (uint32_t) (tree->size),
+    xcfg_node_tvs_do_visit,
+    xcfg_node_tvs_populate);
+}
 
-  xcfg_node *node = curr->data;
+static xcfg_ret
+xcfg_node_tvs_do_dispose(xcfg_node_tvs *curr, void *context)
+{
+  xcfg_node *node = curr->node;
   if (!node)
     return false;
 
   free(node->data_key);
   free(node->key);
 
-  if (curr->meta.next_N)
+  if (curr->meta.bound_N)
     free(node->prev->next);
 
-  return true;
+  if (!curr->node)
+    return XCFG_RET_INVALID;
+
+  free(curr->node);
+  return XCFG_RET_SUCCESS;
 }
 
 void
 xcfg_tree_dispose(xcfg_tree *tree)
 {
-  tvs_depth_first(NULL,
-    (void **)  (tree->root.next),
-    (uint32_t) (tree->root.nnext),
-    (uint32_t) (tree->size),
-    xcfg_node_tvs_free,
-    xcfg_node_tvs_populate);
-
+  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_dispose, NULL);
   free(tree->root.key);
 }
 
-static bool
-xcfg_node_tvs_dump(void *data, tvs_node *curr)
+static xcfg_ret
+xcfg_node_tvs_do_dump(xcfg_node_tvs *curr, void *ctx)
 {
-  xcfg_node *node = curr->data;
+  (void)ctx;
+
+  xcfg_node *node = curr->node;
   if (!node)
-    return false;
+    return XCFG_RET_INVALID;
 
   logi(INDENT(".%s (%p)"), INDENTARG(curr->depth),
-    node->key, xcfg_node_data_ref_off(node, data, xcfg_ptr));
+    node->key, xcfg_node_data_ref_off(node, NULL, xcfg_ptr));
 
-  return true;
+  return XCFG_RET_SUCCESS;
 }
 
 void
-xcfg_tree_dump(xcfg_tree *tree, xcfg_ptr data)
+xcfg_tree_dump(xcfg_tree *tree)
 {
-  tvs_depth_first(data,
-    (void **)  (tree->root.next),
-    (uint32_t) (tree->root.nnext),
-    (uint32_t) (tree->size),
-    xcfg_node_tvs_dump,
-    xcfg_node_tvs_populate);
+  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_dump, NULL);
 }
 
 xcfg_node *

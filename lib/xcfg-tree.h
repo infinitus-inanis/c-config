@@ -47,8 +47,16 @@ xcfg_node_set_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval);
 xcfg_ret
 xcfg_node_get_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval);
 
-bool
-xcfg_node_tvs_populate(void *ctx, tvs_node *curr, void ***pnext, uint32_t *nnext);
+typedef struct {
+  xcfg_node *node;
+  xcfg_u32   depth;
+  struct {
+    bool bound_0 : 1;
+    bool bound_N : 1;
+  } meta;
+} xcfg_node_tvs;
+
+typedef xcfg_ret (* xcfg_node_tvs_visit_f)(xcfg_node_tvs *curr, void *context);
 
 typedef struct {
   xcfg_node root;
@@ -68,7 +76,10 @@ void
 xcfg_tree_dispose(xcfg_tree *tree);
 
 void
-xcfg_tree_dump(xcfg_tree *tree, xcfg_ptr data);
+xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, void *context);
+
+void
+xcfg_tree_dump(xcfg_tree *tree);
 
 xcfg_node *
 xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_u32 off);
