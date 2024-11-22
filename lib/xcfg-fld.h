@@ -6,16 +6,16 @@
 /* Resolves type suffix to type field type id. */
 #define XCFG_FLD_TYPE(sfx) CONCATENATE(XCFG_FLD_TYPE_, sfx)
 
-#undef XCFG_SFX_DO_EXPAND
-#define XCFG_SFX_DO_EXPAND(sfx) XCFG_FLD_TYPE(sfx),
-
 typedef enum {
-  XCFG_FLD_TYPE(INVAL),
-  XCFG_SFX_EXPAND_ALL()
+#define XCFG_SFX_DO_EXPAND(sfx) \
+  XCFG_FLD_TYPE(sfx),
+
+  XCFG_SFX_EXPAND_all()
+#undef XCFG_SFX_DO_EXPAND
+
   XCFG_FLD_TYPE(COUNT),
 } xcfg_fld_type;
 
-#undef XCFG_SFX_DO_EXPAND
 
 typedef struct {
   xcfg_u32 off;

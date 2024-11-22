@@ -20,41 +20,67 @@ xcfg_fld_cmp_by_off(xcfg_fld *l, xcfg_fld *r) {
   return 0;
 }
 
-xcfg_ret
-xcfg_node_type_check(xcfg_node const *node, xcfg_fld_type const type)
+void
+xcfg_node_destroy(xcfg_node *node)
 {
-  xcfg_fld_type const fld_type = node->type;
-  xcfg_u32      const fld_size = node->ref.size;
+  if (!node)
+    return;
+
+  free(node->data_key);
+  free(node->key);
+  free(node);
+}
+
+#define xcfg_data_off(data, off, type) \
+  (type)((xcfg_u08 *)(data) + (xcfg_u32)(off))
+
+xcfg_ptr
+xcfg_node_data_ref_ptr(xcfg_node *node, xcfg_ptr data)
+{
+  return xcfg_data_off(data, node->data_ref_off, xcfg_ptr);
+}
+
+static xcfg_upd *
+xcfg_node_data_upd_ptr(xcfg_node *node, xcfg_ptr data)
+{
+  return xcfg_data_off(data, node->data_upd_off, xcfg_upd *);
+}
+
+xcfg_ret
+xcfg_node_type_check(xcfg_node *node, xcfg_fld_type type)
+{
+  xcfg_fld_type ntype = node->type;
+  xcfg_u32      nsize = node->ref.size;
 
   /* basic value types of the same size can accept
       any value of that size */
   switch (type) {
     case XCFG_FLD_TYPE_s08:
     case XCFG_FLD_TYPE_u08: {
-      if (sizeof(xcfg_s08) != fld_size)
+      if (sizeof(xcfg_s08) != nsize)
         return XCFG_RET_INVALID;
     } break;
 
     case XCFG_FLD_TYPE_s16:
     case XCFG_FLD_TYPE_u16: {
-      if (sizeof(xcfg_s16) != fld_size)
+      if (sizeof(xcfg_s16) != nsize)
         return XCFG_RET_INVALID;
     } break;
 
     case XCFG_FLD_TYPE_s32:
     case XCFG_FLD_TYPE_u32: {
-      if (sizeof(xcfg_s32) != fld_size)
+      if (sizeof(xcfg_s32) != nsize)
         return XCFG_RET_INVALID;
     } break;
 
     case XCFG_FLD_TYPE_s64:
     case XCFG_FLD_TYPE_u64: {
-      if (sizeof(xcfg_u64) != fld_size)
+      if (sizeof(xcfg_u64) != nsize)
         return XCFG_RET_INVALID;
     } break;
 
     default: {
-      if (type != fld_type)
+      if (type != ntype)
         return XCFG_RET_INVALID;
     } break;
   }
@@ -63,13 +89,13 @@ xcfg_node_type_check(xcfg_node const *node, xcfg_fld_type const type)
 }
 
 void
-xcfg_node_clear_upd(xcfg_node const *node, xcfg_ptr data)
+xcfg_node_clear_upd(xcfg_node *node, xcfg_ptr data)
 {
   *xcfg_node_data_upd_ptr(node, data) &= ~XCFG_UPD(node->upd.id);
 }
 
 void
-xcfg_node_raise_upd(xcfg_node const *node, xcfg_ptr data)
+xcfg_node_raise_upd(xcfg_node *node, xcfg_ptr data)
 {
   do {
     *xcfg_node_data_upd_ptr(node, data) |= XCFG_UPD(node->upd.id);
@@ -77,30 +103,30 @@ xcfg_node_raise_upd(xcfg_node const *node, xcfg_ptr data)
 }
 
 xcfg_ret
-xcfg_node_set_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval)
+xcfg_node_set_value(xcfg_node *node, xcfg_ptr data, xcfg_ptr pval)
 {
-  xcfg_ptr dst = xcfg_node_data_ref_off(node, data, xcfg_ptr);
+  xcfg_ptr dst = xcfg_node_data_ref_ptr(node, data);
   xcfg_ptr src;
   bool     cmp;
 
   #define XCFG_SFX_DO_EXPAND(sfx) case XCFG_FLD_TYPE(sfx):
   switch (node->type) {
-    XCFG_SFX_EXPAND_VAL() {
+    XCFG_SFX_EXPAND_val() {
       src = pval;
       cmp = true;
     } break;
 
-    XCFG_SFX_EXPAND_PTR() {
+    XCFG_SFX_EXPAND_ptr() {
       src = pval;
       cmp = false;
     } break;
 
-    XCFG_SFX_EXPAND_OBJ() {
+    XCFG_SFX_EXPAND_obj() {
       src = *(xcfg_obj *)(pval);
       cmp = true;
     } break;
 
-    XCFG_SFX_EXPAND_STR() {
+    XCFG_SFX_EXPAND_str() {
       src = pval;
       xcfg_str src_str = *(xcfg_str *)(src);
       xcfg_str dst_str = *(xcfg_str *)(dst);
@@ -152,20 +178,20 @@ xcfg_node_set_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval)
 }
 
 xcfg_ret
-xcfg_node_get_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval)
+xcfg_node_get_value(xcfg_node *node, xcfg_ptr data, xcfg_ptr pval)
 {
-  xcfg_ptr src = xcfg_node_data_ref_off(node, data, xcfg_ptr);
+  xcfg_ptr src = xcfg_node_data_ref_ptr(node, data);
   xcfg_ptr dst;
 
   #define XCFG_SFX_DO_EXPAND(sfx) case XCFG_FLD_TYPE(sfx):
   switch (node->type) {
-    XCFG_SFX_EXPAND_VAL()
-    XCFG_SFX_EXPAND_PTR()
-    XCFG_SFX_EXPAND_OBJ() {
+    XCFG_SFX_EXPAND_val()
+    XCFG_SFX_EXPAND_ptr()
+    XCFG_SFX_EXPAND_obj() {
       dst = pval;
     } break;
 
-    XCFG_SFX_EXPAND_STR() {
+    XCFG_SFX_EXPAND_str() {
       dst = pval;
       xcfg_str src_str = *(xcfg_str *)(src);
       xcfg_str dst_str = *(xcfg_str *)(dst);
@@ -194,12 +220,12 @@ xcfg_node_get_value(xcfg_node const *node, xcfg_ptr data, xcfg_ptr pval)
 }
 
 typedef struct {
-  xcfg_node_tvs_visit_f  visit;
-  void                  *context;
+  xcfg_node_tvs_visit_f visit;
+  xcfg_ptr              context;
 } xcfg_tree_tvs;
 
 static bool
-xcfg_node_tvs_do_visit(void *context, tvs_node *curr)
+xcfg_node_tvs_visit(void *context, tvs_node *curr)
 {
   xcfg_tree_tvs *ttvs = context;
   xcfg_node_tvs  ntvs = {
@@ -212,9 +238,9 @@ xcfg_node_tvs_do_visit(void *context, tvs_node *curr)
 }
 
 static bool
-xcfg_node_tvs_populate(void *ctx, tvs_node *curr, void ***pnext, uint32_t *nnext)
+xcfg_node_tvs_populate(void *context, tvs_node *curr, void ***pnext, uint32_t *nnext)
 {
-  (void)ctx;
+  (void)context;
 
   xcfg_node *node = curr->data;
   if (!node)
@@ -306,14 +332,14 @@ xcfg_tree_build(xcfg_tree *tree,
     root->next[i]->prev = &tree->root;
   }
 
-  /* any of hashtables will have total count of nodes */
+  /* any of the hashtables will have total count of nodes */
   tree->size = ht_length(tree->by_off);
 
   return XCFG_RET_SUCCESS;
 }
 
 void
-xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, void *context)
+xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr context)
 {
   xcfg_tree_tvs ttvs = {
     .visit   = visit,
@@ -323,56 +349,50 @@ xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, void *co
     (void **)  (tree->root.next),
     (uint32_t) (tree->root.nnext),
     (uint32_t) (tree->size),
-    xcfg_node_tvs_do_visit,
+    xcfg_node_tvs_visit,
     xcfg_node_tvs_populate);
 }
 
 static xcfg_ret
-xcfg_node_tvs_do_dispose(xcfg_node_tvs *curr, void *context)
+xcfg_node_tvs_do_destroy(xcfg_node_tvs *curr, xcfg_ptr context)
 {
+  (void)context;
+
   xcfg_node *node = curr->node;
   if (!node)
-    return false;
-
-  free(node->data_key);
-  free(node->key);
+    return XCFG_RET_INVALID;
 
   if (curr->meta.bound_N)
     free(node->prev->next);
 
-  if (!curr->node)
-    return XCFG_RET_INVALID;
-
-  free(curr->node);
+  xcfg_node_destroy(node);
   return XCFG_RET_SUCCESS;
 }
 
 void
 xcfg_tree_dispose(xcfg_tree *tree)
 {
-  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_dispose, NULL);
+  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_destroy, NULL);
   free(tree->root.key);
 }
 
 static xcfg_ret
-xcfg_node_tvs_do_dump(xcfg_node_tvs *curr, void *ctx)
+xcfg_node_tvs_do_dump(xcfg_node_tvs *curr, void *data)
 {
-  (void)ctx;
-
   xcfg_node *node = curr->node;
   if (!node)
     return XCFG_RET_INVALID;
 
   logi(INDENT(".%s (%p)"), INDENTARG(curr->depth),
-    node->key, xcfg_node_data_ref_off(node, NULL, xcfg_ptr));
+    node->key, xcfg_node_data_ref_ptr(node, data));
 
   return XCFG_RET_SUCCESS;
 }
 
 void
-xcfg_tree_dump(xcfg_tree *tree)
+xcfg_tree_dump(xcfg_tree *tree, xcfg_ptr data)
 {
-  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_dump, NULL);
+  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_dump, data);
 }
 
 xcfg_node *

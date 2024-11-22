@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <memory.h>
 
-#define logi(fmt, args...)   printf("[tst]: " fmt "\n", ## args)
+#define logi(fmt, args...)   printf("[test]: " fmt "\n", ## args)
 #define logii(depth, fmt, args...)  logi(INDENT(fmt), INDENTARG(depth), ## args)
 
 static void
@@ -81,7 +81,7 @@ int main() {
       goto error;
     }
     logi("...success");
-    // test_cfg_dump("cfg", &cfg);
+    test_cfg_dump("cfg", &cfg);
   }
 
   if (0) {
@@ -123,7 +123,7 @@ int main() {
     logi("...success");
   }
 
-  if (1) {
+  if (0) {
     logi("proc (save_file)...");
     ret |= xcfg_save_file(ctx);
 
@@ -134,7 +134,7 @@ int main() {
     logi("...success");
   }
 
-  if (0) {
+  if (1) {
     logi("proc (load_file)...");
     memset(&tmp, 0, sizeof tmp);
     test_cfg_xbind(ctx, &tmp);
@@ -147,6 +147,7 @@ int main() {
       goto error;
     }
     logi("...success");
+    test_cfg_dump("tmp", &tmp);
   }
 
 error:

@@ -34,7 +34,7 @@ xcfg_load_file(xcfg *ctx);
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret XCFG_SET_BY_REF(sfx)(xcfg *ctx, xcfg_ptr ref, XCFG_TYPE(sfx) val);
 
-XCFG_SFX_EXPAND_ALL()
+  XCFG_SFX_EXPAND_all()
 #undef XCFG_SFX_DO_EXPAND
 
 
@@ -42,7 +42,7 @@ XCFG_SFX_EXPAND_ALL()
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret XCFG_SET_BY_KEY(sfx)(xcfg *ctx, xcfg_str key, XCFG_TYPE(sfx) val);
 
-XCFG_SFX_EXPAND_ALL()
+  XCFG_SFX_EXPAND_all()
 #undef XCFG_SFX_DO_EXPAND
 
 
@@ -50,9 +50,9 @@ XCFG_SFX_EXPAND_ALL()
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret XCFG_GET_BY_KEY(sfx)(xcfg *ctx, xcfg_str key, XCFG_TYPE(sfx) *pval);
 
-XCFG_SFX_EXPAND_VAL()
-XCFG_SFX_EXPAND_PTR()
-XCFG_SFX_EXPAND_STR()
+  XCFG_SFX_EXPAND_val()
+  XCFG_SFX_EXPAND_ptr()
+  XCFG_SFX_EXPAND_str()
 #undef XCFG_SFX_DO_EXPAND
 
 /*  Getter for `XCFG_SFX_obj` is a special case:

@@ -18,7 +18,7 @@ typedef enum {
 
 /******************************** *
  * Suffixes for underlying types. *
- * Basicaly are a unique type indentifiers. */
+ * Basicaly are unique type indentifiers. */
 
 #define XCFG_SFX_s08 s08
 #define XCFG_SFX_s16 s16
@@ -49,38 +49,72 @@ typedef enum {
     and for managing nested config structures */
 #define XCFG_SFX_obj obj
 
-#define XCFG_SFX_EXPAND_VAL() \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_s08) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_s16) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_s32) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_s64) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_u08) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_u16) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_u32) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_u64) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_f32) \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_f64)
 
-#define XCFG_SFX_EXPAND_PTR() \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_ptr)
+/********************************************
+ * Expand-macros for `XCFG_SFX_*` values */
 
-#define XCFG_SFX_EXPAND_STR() \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_str)
+#define XCFG_SFX_EXPAND_s08(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_s08, ## args)
+#define XCFG_SFX_EXPAND_s16(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_s16, ## args)
+#define XCFG_SFX_EXPAND_s32(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_s32, ## args)
+#define XCFG_SFX_EXPAND_s64(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_s64, ## args)
+#define XCFG_SFX_EXPAND_u08(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_u08, ## args)
+#define XCFG_SFX_EXPAND_u16(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_u16, ## args)
+#define XCFG_SFX_EXPAND_u32(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_u32, ## args)
+#define XCFG_SFX_EXPAND_u64(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_u64, ## args)
+#define XCFG_SFX_EXPAND_f32(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_f32, ## args)
+#define XCFG_SFX_EXPAND_f64(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_f64, ## args)
+#define XCFG_SFX_EXPAND_ptr(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_ptr, ## args)
+#define XCFG_SFX_EXPAND_str(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_str, ## args)
+#define XCFG_SFX_EXPAND_obj(args...) XCFG_SFX_DO_EXPAND(XCFG_SFX_obj, ## args)
 
-#define XCFG_SFX_EXPAND_OBJ() \
-  XCFG_SFX_DO_EXPAND(XCFG_SFX_obj)
+/* Expands to signed types. */
+#define XCFG_SFX_EXPAND_sxx(args...) \
+  XCFG_SFX_EXPAND_s08(args) \
+  XCFG_SFX_EXPAND_s16(args) \
+  XCFG_SFX_EXPAND_s32(args) \
+  XCFG_SFX_EXPAND_s64(args)
 
-#define XCFG_SFX_EXPAND_ALL() \
-  XCFG_SFX_EXPAND_VAL() \
-  XCFG_SFX_EXPAND_PTR() \
-  XCFG_SFX_EXPAND_STR() \
-  XCFG_SFX_EXPAND_OBJ()
+/* Expands to unsigned types. */
+#define XCFG_SFX_EXPAND_uxx(args...) \
+  XCFG_SFX_EXPAND_u08(args) \
+  XCFG_SFX_EXPAND_u16(args) \
+  XCFG_SFX_EXPAND_u32(args) \
+  XCFG_SFX_EXPAND_u64(args)
+
+/* Expands to float types. */
+#define XCFG_SFX_EXPAND_fxx(args...) \
+  XCFG_SFX_EXPAND_f32(args) \
+  XCFG_SFX_EXPAND_f64(args)
+
+/* Expands to signed/unisgned/float types. */
+#define XCFG_SFX_EXPAND_val(args...) \
+  XCFG_SFX_EXPAND_sxx(args) \
+  XCFG_SFX_EXPAND_uxx(args) \
+  XCFG_SFX_EXPAND_fxx(args)
+
+/* Expands to all available types */
+#define XCFG_SFX_EXPAND_all(args...) \
+  XCFG_SFX_EXPAND_val(args) \
+  XCFG_SFX_EXPAND_ptr(args) \
+  XCFG_SFX_EXPAND_str(args) \
+  XCFG_SFX_EXPAND_obj(args)
+
 
 /******************************************
  * Type definitions for underlying types. */
 
 /* Resolves type suffix to type definition */
-#define XCFG_TYPE(sfx) CONCATENATE(xcfg_, sfx)
+#define XCFG_TYPE(sfx)           CONCATENATE(xcfg_, sfx)
+
+/* Resolves to size of a type by it's suffix */
+#define XCFG_TYPE_SIZE(sfx)      (sizeof(XCFG_TYPE(sfx)))
+
+/* Pointer cast to xcfg pointer type by it's suffix */
+#define XCFG_TYPE_CAST(sfx, ptr) (XCFG_TYPE(sfx) *)(ptr)
+
+/* Creates temporary array of bytes of size
+    equal to size of xcfg type by it's suffix */
+#define XCFG_TYPE_TEMP(sfx)      (xcfg_u08[XCFG_TYPE_SIZE(sfx)]) {}
 
 typedef int8_t    XCFG_TYPE(XCFG_SFX_s08);
 typedef int16_t   XCFG_TYPE(XCFG_SFX_s16);

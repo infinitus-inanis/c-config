@@ -28,7 +28,8 @@ xcfg_create(xcfg_str  type_name,
             xcfg_fld *root_pfld,
             xcfg_u32  root_nfld)
 {
-  xcfg *ctx;
+  xcfg     *ctx;
+  xcfg_ret  ret;
 
   if (!type_name || !type_size
    || !root_pfld || !root_nfld
@@ -41,9 +42,15 @@ xcfg_create(xcfg_str  type_name,
   ctx->type.name = type_name;
   ctx->type.size = type_size;
 
-  xcfg_tree_build(&ctx->tree, type_name, type_size, root_pfld, root_nfld);
+  ret = xcfg_tree_build(&ctx->tree, type_name, type_size, root_pfld, root_nfld);
+  if (ret < 0)
+    goto error;
 
   return ctx;
+
+error:
+  xcfg_destroy(ctx);
+  return NULL;
 }
 
 void
@@ -63,7 +70,7 @@ xcfg_dump(xcfg *ctx)
   logi("type.name: %s", ctx->type.name);
   logi("type.data: %p", ctx->type.data);
   logi("type.size: %u", ctx->type.size);
-  xcfg_tree_dump(&ctx->tree);
+  xcfg_tree_dump(&ctx->tree, ctx->type.data);
 }
 
 xcfg_ret
@@ -127,7 +134,7 @@ xcfg_set_by_ref_impl(xcfg *ctx, xcfg_ptr ref, xcfg_fld_type type, xcfg_ptr pval)
   xcfg_node *node;
   xcfg_ret   ret;
 
-  if (!ctx || !ref || !type)
+  if (!ctx || !ref)
     return XCFG_RET_INVALID;
 
   node = xcfg_get_node_by_ref(ctx, ref);
@@ -147,7 +154,7 @@ xcfg_set_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
   xcfg_node *node;
   xcfg_ret   ret;
 
-  if (!ctx || !key || !type)
+  if (!ctx || !key)
     return XCFG_RET_INVALID;
 
   node = xcfg_get_node_by_key(ctx, key);
@@ -167,7 +174,7 @@ xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
   xcfg_node *node;
   xcfg_ret   ret;
 
-  if (!ctx || !key || !type)
+  if (!ctx || !key)
     return XCFG_RET_INVALID;
 
   node = xcfg_get_node_by_key(ctx, key);
@@ -186,7 +193,7 @@ xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
   XCFG_SET_BY_REF(sfx)(xcfg *ctx, xcfg_ptr ref, XCFG_TYPE(sfx) val) \
   { return xcfg_set_by_ref_impl(ctx, ref, XCFG_FLD_TYPE(sfx), (xcfg_ptr)(&val)); }
 
-XCFG_SFX_EXPAND_ALL()
+  XCFG_SFX_EXPAND_all()
 #undef XCFG_SFX_DO_EXPAND
 
 
@@ -195,7 +202,7 @@ XCFG_SFX_EXPAND_ALL()
   XCFG_SET_BY_KEY(sfx)(xcfg *ctx, xcfg_str key, XCFG_TYPE(sfx) val) \
   { return xcfg_set_by_key_impl(ctx, key, XCFG_FLD_TYPE(sfx), (xcfg_ptr)(&val)); }
 
-XCFG_SFX_EXPAND_ALL()
+  XCFG_SFX_EXPAND_all()
 #undef XCFG_SFX_DO_EXPAND
 
 
@@ -204,9 +211,9 @@ XCFG_SFX_EXPAND_ALL()
   XCFG_GET_BY_KEY(sfx)(xcfg *ctx, xcfg_str key, XCFG_TYPE(sfx) *pval) \
   { return xcfg_get_by_key_impl(ctx, key, XCFG_FLD_TYPE(sfx), (xcfg_ptr)(pval)); }
 
-XCFG_SFX_EXPAND_VAL()
-XCFG_SFX_EXPAND_PTR()
-XCFG_SFX_EXPAND_STR()
+  XCFG_SFX_EXPAND_val()
+  XCFG_SFX_EXPAND_ptr()
+  XCFG_SFX_EXPAND_str()
 #undef XCFG_SFX_DO_EXPAND
 
 

@@ -13,8 +13,9 @@
 #define PRIM_STRINGIFY(s) #s
 #define STRINGIFY(s)      PRIM_STRINGIFY(s)
 
+#define INDENTLEN        (2)
 #define INDENT(str)      "%*s" str
-#define INDENTARG(depth) ((depth) * 2), ""
+#define INDENTARG(depth) ((depth) * INDENTLEN), ""
 
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(0[arr]))
 
