@@ -1,19 +1,31 @@
 CC = gcc
 AR = ar
 
-CCF = -Wall -Wextra -g -ggdb -gdwarf
+CCF = \
+	-Wall -Wextra \
+	-g -ggdb -gdwarf \
+	-fsanitize=address -fno-omit-frame-pointer -static-libasan -lrt
 
 CFG_DIR = lib
-CFG_LIB = $(CFG_DIR)/libcfg.a
+CFG_LIB = $(CFG_DIR)/libxcfg.a
 
-CFG_DEP = $(CFG_DIR)/cfg-base.h 	 		 \
-					$(CFG_DIR)/utils/list.h  		 \
-					$(CFG_DIR)/utils/queue.h 		 \
-					$(CFG_DIR)/utils/stack.h 		 \
-					$(CFG_DIR)/utils/hashtable.h \
+CFG_DEP = \
+	$(CFG_DIR)/utils/hashtable.h \
+	$(CFG_DIR)/utils/traverse.h  \
+	$(CFG_DIR)/xcfg-utils.h      \
+	$(CFG_DIR)/xcfg-types.h      \
+	$(CFG_DIR)/xcfg-rtti.h       \
+	$(CFG_DIR)/xcfg-tree.h       \
+	$(CFG_DIR)/xcfg-file.h       \
+	$(CFG_DIR)/xcfg-api.h
 
-CFG_OBJ = $(CFG_DIR)/cfg-base.o 			 \
-					$(CFG_DIR)/utils/hashtable.o
+CFG_OBJ = \
+	$(CFG_DIR)/utils/hashtable.o \
+	$(CFG_DIR)/utils/traverse.o  \
+	$(CFG_DIR)/xcfg-types.o      \
+	$(CFG_DIR)/xcfg-tree.o       \
+	$(CFG_DIR)/xcfg-file.o       \
+	$(CFG_DIR)/xcfg-api.o
 
 CFG_CCF = -I$(CFG_DIR)
 

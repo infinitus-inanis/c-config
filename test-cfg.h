@@ -1,16 +1,16 @@
 #ifndef __CFG_TEST_H__
 #define __CFG_TEST_H__
 
-#include "lib/cfg-base.h"
+#include "lib/xcfg-api.h"
 
 enum type_obj_upd {
   TYPE_OBJ_UPD_HUH
 };
 
 struct type_obj {
-  cfg_upd upd;
+  xcfg_upd upd;
 
-  cfg_s08 huh;
+  xcfg_s08 huh;
 };
 
 enum type_cfg_upd {
@@ -30,24 +30,22 @@ enum type_cfg_upd {
 };
 
 struct type_cfg {
-  cfg_upd  upd;
+  xcfg_upd  upd;
 
-  cfg_s08 _s08;
-  cfg_s16 _s16;
-  cfg_s32 _s32;
-  cfg_s64 _s64;
-
-  cfg_u08 _u08;
-  cfg_u16 _u16;
-  cfg_u32 _u32;
-  cfg_u64 _u64;
-
-  cfg_f32 _f32;
-  cfg_f64 _f64;
+  xcfg_s08 _s08;
+  xcfg_s16 _s16;
+  xcfg_s32 _s32;
+  xcfg_s64 _s64;
+  xcfg_u08 _u08;
+  xcfg_u16 _u16;
+  xcfg_u32 _u32;
+  xcfg_u64 _u64;
+  xcfg_f32 _f32;
+  xcfg_f64 _f64;
 
   struct type_obj *_ptr;
   struct type_obj  _obj;
-  cfg_str          _str;
+  xcfg_str         _str;
 };
 
 enum test_cfg_upd {
@@ -56,16 +54,19 @@ enum test_cfg_upd {
 };
 
 struct test_cfg {
-  cfg_upd upd;
+  xcfg_upd upd;
 
   struct type_cfg type;
-  struct { cfg_u08 val; } fake;
+  struct { xcfg_u08 val; } fake;
 };
 
-cfg_ctx *
-test_cfg_ctx_create(struct test_cfg *cfg);
-
 void
-test_cfg_ctx_destroy(cfg_ctx *ctx);
+test_cfg_dispose(struct test_cfg *cfg);
+
+xcfg *
+test_cfg_xcreate();
+
+xcfg_ret
+test_cfg_xbind(xcfg *ctx, struct test_cfg *cfg);
 
 #endif//__CFG_TEST_H__
