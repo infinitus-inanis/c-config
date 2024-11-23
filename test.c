@@ -50,9 +50,10 @@ int main() {
     logi("test_cfg_ctx_create failure");
     return 1;
   }
+  xcfg_dump(ctx);
+
   test_cfg_xbind(ctx, &cfg);
   test_cfg_dump("cfg", &cfg);
-  xcfg_dump(ctx);
 
   if (1) {
     logi("proc (set)...");
@@ -123,7 +124,7 @@ int main() {
     logi("...success");
   }
 
-  if (0) {
+  if (1) {
     logi("proc (save_file)...");
     ret |= xcfg_save_file(ctx);
 
@@ -134,7 +135,7 @@ int main() {
     logi("...success");
   }
 
-  if (1) {
+  if (0) {
     logi("proc (load_file)...");
     memset(&tmp, 0, sizeof tmp);
     test_cfg_xbind(ctx, &tmp);

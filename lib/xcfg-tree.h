@@ -6,20 +6,18 @@
 /* TODO (butsuk_d): make xcfg_node and xcfg_tree opaque */
 
 typedef struct xcfg_node xcfg_node;
+
+/* Describes one field of a config structure. */
 struct xcfg_node {
-  xcfg_str data_key;
-  xcfg_u32 data_ref_off;
-  xcfg_u32 data_upd_off;
+  xcfg_rtfi *rtfi; /* reference to field info */
 
-  xcfg_str      key;
-  xcfg_ref_desc ref;
-  xcfg_fld_type type;
+  xcfg_str data_fld_key; /* full path to field inside config structure          */
+  xcfg_u32 data_fld_off; /* full offset to field inside config structure        */
+  xcfg_u32 data_upd_off; /* full offset to update field inside config structure */
 
-  xcfg_upd_desc upd;
-
-  xcfg_node  *prev;
-  xcfg_node **next;
-  xcfg_u32    nnext;
+  xcfg_node  *prev;  /* reference to field owner     */
+  xcfg_node **next;  /* reference to children fields */
+  xcfg_u32    nnext; /* children fields count        */
 };
 
 typedef struct {
@@ -37,10 +35,10 @@ void
 xcfg_node_destroy(xcfg_node *node);
 
 xcfg_ptr
-xcfg_node_data_ref_ptr(xcfg_node *node, xcfg_ptr data);
+xcfg_node_get_fld_ptr(xcfg_node *node, xcfg_ptr data);
 
 xcfg_ret
-xcfg_node_type_check(xcfg_node *node, xcfg_fld_type type);
+xcfg_node_type_check(xcfg_node *node, xcfg_tid tid);
 
 void
 xcfg_node_clear_upd(xcfg_node *node, xcfg_ptr data);
@@ -55,22 +53,19 @@ xcfg_ret
 xcfg_node_get_value(xcfg_node *node, xcfg_ptr data, xcfg_ptr pval);
 
 
-typedef struct ht_ctx ht_ctx;
-
+typedef struct ht_ctx    ht_ctx;
 typedef struct xcfg_tree xcfg_tree;
 struct xcfg_tree {
-  xcfg_node  root;
+  xcfg_rtti *rtti; /* main type info               */
+  xcfg_rtfi  rtfi; /* proxy field info for `.rtti` */
+  xcfg_node  root; /* proxy field node for `.rtti` */
   xcfg_u32   size;
-  ht_ctx    *by_key;
   ht_ctx    *by_off;
+  ht_ctx    *by_key;
 };
 
 xcfg_ret
-xcfg_tree_build(xcfg_tree *tree,
-                xcfg_str   root_key,
-                xcfg_u32   root_size,
-                xcfg_fld  *root_pfld,
-                xcfg_u32   root_nfld);
+xcfg_tree_build(xcfg_tree *tree, xcfg_rtti *rtti);
 
 void
 xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr context);
@@ -86,6 +81,5 @@ xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_u32 off);
 
 xcfg_node *
 xcfg_tree_get_node_by_key(xcfg_tree *tree, xcfg_str key);
-
 
 #endif//__XCFG_TREE_H__

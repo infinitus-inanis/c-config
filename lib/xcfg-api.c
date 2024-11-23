@@ -12,37 +12,28 @@
 #define logi(fmt, args...) printf("[xcfg]: "fmt "\n", ## args)
 
 struct xcfg {
-  struct {
-    xcfg_str name;
-    xcfg_ptr data;
-    xcfg_u32 size;
-  } type;
-
-  xcfg_tree tree;
-  xcfg_file file;
+  xcfg_ptr   data;
+  xcfg_rtti *rtti;
+  xcfg_tree  tree;
+  xcfg_file  file;
 };
 
 xcfg *
-xcfg_create(xcfg_str  type_name,
-            xcfg_u32  type_size,
-            xcfg_fld *root_pfld,
-            xcfg_u32  root_nfld)
+xcfg_create(xcfg_rtti *rtti)
 {
   xcfg     *ctx;
   xcfg_ret  ret;
 
-  if (!type_name || !type_size
-   || !root_pfld || !root_nfld
-  ) return NULL;
+  if (!rtti)
+    return NULL;
 
   ctx = calloc(1, sizeof *ctx);
   if (!ctx)
     return NULL;
 
-  ctx->type.name = type_name;
-  ctx->type.size = type_size;
+  ctx->rtti = rtti;
 
-  ret = xcfg_tree_build(&ctx->tree, type_name, type_size, root_pfld, root_nfld);
+  ret = xcfg_tree_build(&ctx->tree, ctx->rtti);
   if (ret < 0)
     goto error;
 
@@ -67,26 +58,26 @@ xcfg_destroy(xcfg *ctx)
 void
 xcfg_dump(xcfg *ctx)
 {
-  logi("type.name: %s", ctx->type.name);
-  logi("type.data: %p", ctx->type.data);
-  logi("type.size: %u", ctx->type.size);
-  xcfg_tree_dump(&ctx->tree, ctx->type.data);
+  logi("data: %p",      ctx->data);
+  logi("type.name: %s", ctx->rtti->name);
+  logi("type.size: %u", ctx->rtti->size);
+  xcfg_tree_dump(&ctx->tree, ctx->data);
 }
 
 xcfg_ret
 xcfg_set_data(xcfg *ctx, xcfg_ptr data, xcfg_u32 size)
 {
-  if (ctx->type.size != size)
+  if (ctx->rtti->size != size)
     return XCFG_RET_INVALID;
 
-  ctx->type.data = data;
+  ctx->data = data;
   return XCFG_RET_SUCCESS;
 }
 
 xcfg_ptr
 xcfg_get_data(xcfg *ctx)
 {
-  return ctx->type.data;
+  return ctx->data;
 }
 
 xcfg_ret
@@ -98,13 +89,13 @@ xcfg_bind_file(xcfg *ctx, xcfg_str path)
 xcfg_ret
 xcfg_save_file(xcfg *ctx)
 {
-  return xcfg_file_save(&ctx->file, &ctx->tree, ctx->type.data);
+  return xcfg_file_save(&ctx->file, &ctx->tree, ctx->data);
 }
 
 xcfg_ret
 xcfg_load_file(xcfg *ctx)
 {
-  return xcfg_file_load(&ctx->file, &ctx->tree, ctx->type.data);
+  return xcfg_file_load(&ctx->file, &ctx->tree, ctx->data);
 }
 
 static xcfg_node *
@@ -112,11 +103,14 @@ xcfg_get_node_by_ref(xcfg *ctx, xcfg_ptr ref)
 {
   xcfg_u32 off;
 
-  if (ref < ctx->type.data)
+  /* reference can't be higher in address space */
+  if (ref < ctx->data)
     return NULL;
 
-  off = (xcfg_u08 *)(ref) - (xcfg_u08 *)(ctx->type.data);
-  if (off >= ctx->type.size)
+  off = (xcfg_u08 *)(ref) - (xcfg_u08 *)(ctx->data);
+
+  /* validate offset bounds */
+  if (off >= ctx->rtti->size)
     return NULL;
 
   return xcfg_tree_get_node_by_off(&ctx->tree, off);
@@ -129,7 +123,7 @@ xcfg_get_node_by_key(xcfg *ctx, xcfg_str key)
 }
 
 static xcfg_ret
-xcfg_set_by_ref_impl(xcfg *ctx, xcfg_ptr ref, xcfg_fld_type type, xcfg_ptr pval)
+xcfg_set_by_ref_impl(xcfg *ctx, xcfg_ptr ref, xcfg_tid tid, xcfg_ptr pval)
 {
   xcfg_node *node;
   xcfg_ret   ret;
@@ -141,15 +135,15 @@ xcfg_set_by_ref_impl(xcfg *ctx, xcfg_ptr ref, xcfg_fld_type type, xcfg_ptr pval)
   if (!node)
     return XCFG_RET_UNKNOWN;
 
-  ret = xcfg_node_type_check(node, type);
+  ret = xcfg_node_type_check(node, tid);
   if (ret < 0)
     return ret;
 
-  return xcfg_node_set_value(node, ctx->type.data, pval);
+  return xcfg_node_set_value(node, ctx->data, pval);
 }
 
 static xcfg_ret
-xcfg_set_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
+xcfg_set_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_tid tid, xcfg_ptr pval)
 {
   xcfg_node *node;
   xcfg_ret   ret;
@@ -161,15 +155,15 @@ xcfg_set_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
   if (!node)
     return XCFG_RET_UNKNOWN;
 
-  ret = xcfg_node_type_check(node, type);
+  ret = xcfg_node_type_check(node, tid);
   if (ret < 0)
     return ret;
 
-  return xcfg_node_set_value(node, ctx->type.data, pval);
+  return xcfg_node_set_value(node, ctx->data, pval);
 }
 
 static xcfg_ret
-xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
+xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_tid tid, xcfg_ptr pval)
 {
   xcfg_node *node;
   xcfg_ret   ret;
@@ -181,17 +175,17 @@ xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
   if (!node)
     return XCFG_RET_UNKNOWN;
 
-  ret = xcfg_node_type_check(node, type);
+  ret = xcfg_node_type_check(node, tid);
   if (ret < 0)
     return ret;
 
-  return xcfg_node_get_value(node, ctx->type.data, pval);
+  return xcfg_node_get_value(node, ctx->data, pval);
 }
 
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret \
   XCFG_SET_BY_REF(sfx)(xcfg *ctx, xcfg_ptr ref, XCFG_TYPE(sfx) val) \
-  { return xcfg_set_by_ref_impl(ctx, ref, XCFG_FLD_TYPE(sfx), (xcfg_ptr)(&val)); }
+  { return xcfg_set_by_ref_impl(ctx, ref, XCFG_TID(sfx), (xcfg_ptr)(&val)); }
 
   XCFG_SFX_EXPAND_all()
 #undef XCFG_SFX_DO_EXPAND
@@ -200,7 +194,7 @@ xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret \
   XCFG_SET_BY_KEY(sfx)(xcfg *ctx, xcfg_str key, XCFG_TYPE(sfx) val) \
-  { return xcfg_set_by_key_impl(ctx, key, XCFG_FLD_TYPE(sfx), (xcfg_ptr)(&val)); }
+  { return xcfg_set_by_key_impl(ctx, key, XCFG_TID(sfx), (xcfg_ptr)(&val)); }
 
   XCFG_SFX_EXPAND_all()
 #undef XCFG_SFX_DO_EXPAND
@@ -209,7 +203,7 @@ xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret \
   XCFG_GET_BY_KEY(sfx)(xcfg *ctx, xcfg_str key, XCFG_TYPE(sfx) *pval) \
-  { return xcfg_get_by_key_impl(ctx, key, XCFG_FLD_TYPE(sfx), (xcfg_ptr)(pval)); }
+  { return xcfg_get_by_key_impl(ctx, key, XCFG_TID(sfx), (xcfg_ptr)(pval)); }
 
   XCFG_SFX_EXPAND_val()
   XCFG_SFX_EXPAND_ptr()
@@ -219,4 +213,4 @@ xcfg_get_by_key_impl(xcfg *ctx, xcfg_str key, xcfg_fld_type type, xcfg_ptr pval)
 
 xcfg_ret
 XCFG_GET_BY_KEY(XCFG_SFX_obj)(xcfg *ctx, xcfg_str key, xcfg_obj obj)
-{ return xcfg_get_by_key_impl(ctx, key, XCFG_FLD_TYPE(XCFG_SFX_obj), (xcfg_ptr)(obj)); }
+{ return xcfg_get_by_key_impl(ctx, key, XCFG_TID(XCFG_SFX_obj), (xcfg_ptr)(obj)); }

@@ -3,65 +3,63 @@
 
 #include "xcfg-types.h"
 
-/* Resolves type suffix to type field type id. */
-#define XCFG_FLD_TYPE(sfx) CONCATENATE(XCFG_FLD_TYPE_, sfx)
-
-typedef enum {
-#define XCFG_SFX_DO_EXPAND(sfx) \
-  XCFG_FLD_TYPE(sfx),
-
-  XCFG_SFX_EXPAND_all()
-#undef XCFG_SFX_DO_EXPAND
-
-  XCFG_FLD_TYPE(COUNT),
-} xcfg_fld_type;
-
-
 typedef struct {
   xcfg_u32 off;
   xcfg_u32 size;
-} xcfg_ref_desc;
+} xcfg_fld;
 
-#define XCFG_REF_DESC(type, member) \
+#define XCFG_FLD(type, member) \
   { \
     .off  = FIELD_OFFSET_OF(type, member), \
     .size = FIELD_SIZE_OF(type, member) \
   }
 
-typedef struct {
-  xcfg_u08      id;
-  xcfg_ref_desc ref;
-} xcfg_upd_desc;
-
-#define XCFG_UPD_DESC(upd_id, type, member) \
-  { \
-    .id = (upd_id), \
-    .ref = XCFG_REF_DESC(type, member), \
-  }
-
-typedef struct xcfg_fld xcfg_fld;
-struct xcfg_fld {
-  xcfg_str       key;
-  xcfg_ref_desc  ref;
-  xcfg_fld_type  type;
-
-  xcfg_upd_desc  upd;
-
-  xcfg_fld *sub;
-  xcfg_u32  nsub;
+struct xcfg_rtti {
+  xcfg_str   name;
+  xcfg_u32   size;
+  xcfg_fld   upd;
+  xcfg_rtfi *rtfi;
+  xcfg_u32   nrtfi;
 };
 
-#define XCFG_FLD0(cfg_type, fld_path, xcfg_sfx, upd_path, upd_id, cfg_sub, cfg_nsub) \
+#define XCFG_RTTI(type, upd_fld, _rtfi) \
   { \
-    .key = #fld_path, \
-    .type = XCFG_FLD_TYPE(xcfg_sfx), \
-    .ref = XCFG_REF_DESC(cfg_type, fld_path), \
-    .upd = XCFG_UPD_DESC(upd_id, cfg_type, upd_path), \
-    .sub = (cfg_sub), \
-    .nsub = (cfg_nsub), \
+    .name  = STRINGIFY(type), \
+    .size  = sizeof(type), \
+    .upd   = XCFG_FLD(type, upd_fld), \
+    .rtfi  = (_rtfi), \
+    .nrtfi = ARRAY_SIZE(_rtfi), \
   }
 
-#define XCFG_FLD1(cfg_type, fld_path, xcfg_sfx, upd_path, upd_id) \
-  XCFG_FLD0(cfg_type, fld_path, xcfg_sfx, upd_path, upd_id, NULL, 0)
+struct xcfg_rtfi {
+  xcfg_tid tid;
+  xcfg_str key;
+  xcfg_fld fld;
+  xcfg_u08 upd;
+
+  /* used only if `.tid == XCFG_TID_obj` */
+  struct {
+    xcfg_rtti *rtti;
+  } obj;
+};
+
+#define XCFG_RTFI(_tid, base_type, path, upd_id, obj_rtti) \
+ { \
+  .tid = (_tid), \
+  .key = #path, \
+  .fld = XCFG_FLD(base_type, path), \
+  .upd = (upd_id), \
+  .obj.rtti = (obj_rtti), \
+ }
+
+#define XCFG_RTFI_VAL(_tid, base_type, path, upd_id) \
+  XCFG_RTFI(_tid, base_type, path, upd_id, NULL)
+
+#define XCFG_RTFI_OBJ(obj_rtti, base_type, path, upd_id) \
+  XCFG_RTFI(XCFG_TID_obj, base_type, path, upd_id, obj_rtti)
+
+#define DECL_XCFG_RTTI(name, type, upd_path, flds...) \
+  static xcfg_rtfi name##_rtfi[] = { flds }; \
+  static xcfg_rtti name = XCFG_RTTI(type, upd_path, name##_rtfi)
 
 #endif//__XCFG_FLD_H__

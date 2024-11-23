@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+XCFG_EXPORT_ENTER
+
 typedef enum {
   XCFG_RET_FAILRUE = -1,
   XCFG_RET_SUCCESS =  0,
@@ -18,7 +20,7 @@ typedef enum {
 
 /******************************** *
  * Suffixes for underlying types. *
- * Basicaly are unique type indentifiers. */
+ * Basicaly are compile-time type ids. */
 
 #define XCFG_SFX_s08 s08
 #define XCFG_SFX_s16 s16
@@ -135,6 +137,25 @@ typedef char *    XCFG_TYPE(XCFG_SFX_str);
 typedef void *    XCFG_TYPE(XCFG_SFX_obj);
 
 
+/*****************************************
+ * Runtime type ids for underlying types */
+
+#define XCFG_TID(sfx) CONCATENATE(XCFG_TID_, sfx)
+
+typedef enum {
+#define XCFG_SFX_DO_EXPAND(sfx) \
+  XCFG_TID(sfx),
+
+  XCFG_SFX_EXPAND_all()
+#undef XCFG_SFX_DO_EXPAND
+
+  XCFG_TID(COUNT)
+} xcfg_tid;
+
+xcfg_str
+xcfg_tid2sfx(xcfg_tid tid);
+
+
 /*****************************
  * Config update management. *
  *
@@ -149,11 +170,15 @@ typedef xcfg_u64 xcfg_upd;
 #define XCFG_UPD(id) ((xcfg_upd)(1) << (xcfg_upd)(id))
 
 
-/* Forward delcare field descriptor type because
-    we want api to be as clean as possible */
-typedef struct xcfg_fld xcfg_fld;
+/* Run-Time Type Info */
+typedef struct xcfg_rtti xcfg_rtti;
 
-/* Forward declare main config context type */
+/* Run-Time Field Info */
+typedef struct xcfg_rtfi xcfg_rtfi;
+
+/* Main config context handle */
 typedef struct xcfg xcfg;
+
+XCFG_EXPORT_LEAVE
 
 #endif//__XCFG_TYPES_H__

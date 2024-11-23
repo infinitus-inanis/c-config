@@ -19,6 +19,7 @@ CFG_DEP = \
 CFG_OBJ = \
 	$(CFG_DIR)/utils/hashtable.o \
 	$(CFG_DIR)/utils/traverse.o  \
+	$(CFG_DIR)/xcfg-types.o      \
 	$(CFG_DIR)/xcfg-tree.o       \
 	$(CFG_DIR)/xcfg-file.o       \
 	$(CFG_DIR)/xcfg-api.o

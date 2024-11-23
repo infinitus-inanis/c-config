@@ -4,10 +4,13 @@
 #include "xcfg-types.h"
 
 xcfg *
-xcfg_create(xcfg_str  type_name,
-            xcfg_u32  type_size,
-            xcfg_fld *root_pfld,
-            xcfg_u32  root_nfld);
+xcfg_create(xcfg_rtti *rtti);
+
+// xcfg *
+// xcfg_create(xcfg_str  type_name,
+//             xcfg_u32  type_size,
+//             xcfg_fld *root_pfld,
+//             xcfg_u32  root_nfld);
 
 void
 xcfg_destroy(xcfg *ctx);

@@ -5,32 +5,33 @@
 #include <stdlib.h>
 #include <memory.h>
 
-static xcfg_fld _type_obj[] = {
-  XCFG_FLD1(struct type_obj, huh, XCFG_SFX_s08, upd, TYPE_OBJ_UPD_HUH),
-};
-static const xcfg_u32 _type_obj_sz = ARRAY_SIZE(_type_obj);
+DECL_XCFG_RTTI(_type_obj,
+  struct type_obj, upd,
+  XCFG_RTFI_VAL(XCFG_TID_s08, struct type_obj, huh, TYPE_OBJ_UPD_HUH)
+);
 
-static xcfg_fld _type_cfg[] = {
-  XCFG_FLD1(struct type_cfg, _s08, XCFG_SFX_s08, upd, TYPE_CFG_UPD_s08),
-  XCFG_FLD1(struct type_cfg, _s16, XCFG_SFX_s16, upd, TYPE_CFG_UPD_s16),
-  XCFG_FLD1(struct type_cfg, _s32, XCFG_SFX_s32, upd, TYPE_CFG_UPD_s32),
-  XCFG_FLD1(struct type_cfg, _s64, XCFG_SFX_s64, upd, TYPE_CFG_UPD_s64),
-  XCFG_FLD1(struct type_cfg, _u08, XCFG_SFX_u08, upd, TYPE_CFG_UPD_u08),
-  XCFG_FLD1(struct type_cfg, _u16, XCFG_SFX_u16, upd, TYPE_CFG_UPD_u16),
-  XCFG_FLD1(struct type_cfg, _u32, XCFG_SFX_u32, upd, TYPE_CFG_UPD_u32),
-  XCFG_FLD1(struct type_cfg, _u64, XCFG_SFX_u64, upd, TYPE_CFG_UPD_u64),
-  XCFG_FLD1(struct type_cfg, _f32, XCFG_SFX_f32, upd, TYPE_CFG_UPD_f32),
-  XCFG_FLD1(struct type_cfg, _f64, XCFG_SFX_f64, upd, TYPE_CFG_UPD_f64),
-  XCFG_FLD1(struct type_cfg, _ptr, XCFG_SFX_ptr, upd, TYPE_CFG_UPD_ptr),
-  XCFG_FLD0(struct type_cfg, _obj, XCFG_SFX_obj, upd, TYPE_CFG_UPD_obj, _type_obj, _type_obj_sz),
-  XCFG_FLD1(struct type_cfg, _str, XCFG_SFX_str, upd, TYPE_CFG_UPD_str),
-};
-static const xcfg_u32 _type_cfg_sz = ARRAY_SIZE(_type_cfg);
+DECL_XCFG_RTTI(_type_cfg,
+  struct type_cfg, upd,
+  XCFG_RTFI_VAL(XCFG_TID_s08, struct type_cfg, _s08, TYPE_CFG_UPD_s08),
+  XCFG_RTFI_VAL(XCFG_TID_s16, struct type_cfg, _s16, TYPE_CFG_UPD_s16),
+  XCFG_RTFI_VAL(XCFG_TID_s32, struct type_cfg, _s32, TYPE_CFG_UPD_s32),
+  XCFG_RTFI_VAL(XCFG_TID_s64, struct type_cfg, _s64, TYPE_CFG_UPD_s64),
+  XCFG_RTFI_VAL(XCFG_TID_u08, struct type_cfg, _u08, TYPE_CFG_UPD_u08),
+  XCFG_RTFI_VAL(XCFG_TID_u16, struct type_cfg, _u16, TYPE_CFG_UPD_u16),
+  XCFG_RTFI_VAL(XCFG_TID_u32, struct type_cfg, _u32, TYPE_CFG_UPD_u32),
+  XCFG_RTFI_VAL(XCFG_TID_u64, struct type_cfg, _u64, TYPE_CFG_UPD_u64),
+  XCFG_RTFI_VAL(XCFG_TID_f32, struct type_cfg, _f32, TYPE_CFG_UPD_f32),
+  XCFG_RTFI_VAL(XCFG_TID_f64, struct type_cfg, _f64, TYPE_CFG_UPD_f64),
+  XCFG_RTFI_VAL(XCFG_TID_ptr, struct type_cfg, _ptr, TYPE_CFG_UPD_ptr),
+  XCFG_RTFI_OBJ(&_type_obj,   struct type_cfg, _obj, TYPE_CFG_UPD_obj),
+  XCFG_RTFI_VAL(XCFG_TID_str, struct type_cfg, _str, TYPE_CFG_UPD_str),
+);
 
-static xcfg_fld test_cfg_fld[] = {
-  XCFG_FLD0(struct test_cfg, type,     XCFG_SFX_obj, upd, TEST_CFG_UPD_TYPE, _type_cfg, _type_cfg_sz),
-  XCFG_FLD1(struct test_cfg, fake.val, XCFG_SFX_u08, upd, TEST_CFG_UPD_FAKE_VAL),
-};
+DECL_XCFG_RTTI(_test_cfg,
+  struct test_cfg, upd,
+  XCFG_RTFI_OBJ(&_type_cfg,   struct test_cfg, type,     TEST_CFG_UPD_TYPE),
+  XCFG_RTFI_VAL(XCFG_TID_u08, struct test_cfg, fake.val, TEST_CFG_UPD_FAKE_VAL),
+);
 
 void
 test_cfg_dispose(struct test_cfg *cfg)
@@ -44,7 +45,7 @@ test_cfg_dispose(struct test_cfg *cfg)
 xcfg *
 test_cfg_xcreate()
 {
-  return xcfg_create(DUMP_TYPE(struct test_cfg), DUMP_ARRAY(test_cfg_fld));
+  return xcfg_create(&_test_cfg);
 }
 
 xcfg_ret
