@@ -1,7 +1,10 @@
 CC = gcc
 AR = ar
 
-CCF = -Wall -Wextra -g -ggdb -gdwarf
+CCF = \
+	-Wall -Wextra \
+	-g -ggdb -gdwarf \
+	-fsanitize=address -fno-omit-frame-pointer -static-libasan -lrt
 
 CFG_DIR = lib
 CFG_LIB = $(CFG_DIR)/libxcfg.a

@@ -85,7 +85,7 @@ int main() {
     test_cfg_dump("cfg", &cfg);
   }
 
-  if (0) {
+  if (1) {
     logi("proc (get)...");
     ret |= xcfg_get_by_key_s08(ctx, "type._s08", &tmp.type._s08);
     ret |= xcfg_get_by_key_s16(ctx, "type._s16", &tmp.type._s16);
@@ -111,6 +111,7 @@ int main() {
     }
     logi("...success");
     test_cfg_dump("tmp", &tmp);
+    test_cfg_dispose(&tmp);
   }
 
   if (1) {
@@ -135,7 +136,7 @@ int main() {
     logi("...success");
   }
 
-  if (0) {
+  if (1) {
     logi("proc (load_file)...");
     memset(&tmp, 0, sizeof tmp);
     test_cfg_xbind(ctx, &tmp);

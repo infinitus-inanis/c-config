@@ -14,8 +14,15 @@
 void
 xcfg_node_destroy(xcfg_node *node)
 {
+  xcfg_u32 i;
+
   if (!node)
     return;
+
+  for (i = 0; i < node->nnext; ++i)
+    xcfg_node_destroy(node->next[i]);
+
+  free(node->next);
 
   free(node->data_fld_key);
   free(node);
@@ -343,29 +350,23 @@ xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr
     xcfg_node_tvs_populate);
 }
 
-static xcfg_ret
-xcfg_node_tvs_do_destroy(xcfg_node_tvs *curr, xcfg_ptr context)
-{
-  (void)context;
-
-  xcfg_node *node = curr->node;
-  if (!node)
-    return XCFG_RET_INVALID;
-
-  if (curr->meta.bound_N)
-    free(node->prev->next);
-
-  xcfg_node_destroy(node);
-  return XCFG_RET_SUCCESS;
-}
-
 void
 xcfg_tree_dispose(xcfg_tree *tree)
 {
-  xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_destroy, NULL);
+  xcfg_u32 i;
 
-  ht_destroy(tree->by_key);
+  if (!tree)
+    return;
+
+  for (i = 0; i < tree->root.nnext; ++i)
+    xcfg_node_destroy(tree->root.next[i]);
+
+  free(tree->root.next);
+
   ht_destroy(tree->by_off);
+  ht_destroy(tree->by_key);
+
+  memset(tree, 0, sizeof *tree);
 }
 
 static xcfg_ret

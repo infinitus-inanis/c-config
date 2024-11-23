@@ -40,6 +40,7 @@ test_cfg_dispose(struct test_cfg *cfg)
     return;
 
   free(cfg->type._str);
+  memset(cfg, 0, sizeof *cfg);
 }
 
 xcfg *
