@@ -1,5 +1,5 @@
 #include "test-cfg.h"
-#include "lib/xcfg-fld.h"
+#include "lib/xcfg-rtti.h"
 
 #include <unistd.h>
 #include <stdlib.h>

@@ -1,5 +1,5 @@
-#ifndef __XCFG_FLD_H__
-#define __XCFG_FLD_H__
+#ifndef __XCFG_RTTI_H__
+#define __XCFG_RTTI_H__
 
 #include "xcfg-types.h"
 
@@ -62,4 +62,4 @@ struct xcfg_rtfi {
   static xcfg_rtfi name##_rtfi[] = { flds }; \
   static xcfg_rtti name = XCFG_RTTI(type, upd_path, name##_rtfi)
 
-#endif//__XCFG_FLD_H__
+#endif//__XCFG_RTTI_H__

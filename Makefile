@@ -11,7 +11,7 @@ CFG_DEP = \
 	$(CFG_DIR)/utils/traverse.h  \
 	$(CFG_DIR)/xcfg-utils.h      \
 	$(CFG_DIR)/xcfg-types.h      \
-	$(CFG_DIR)/xcfg-fld.h        \
+	$(CFG_DIR)/xcfg-rtti.h       \
 	$(CFG_DIR)/xcfg-tree.h       \
 	$(CFG_DIR)/xcfg-file.h       \
 	$(CFG_DIR)/xcfg-api.h

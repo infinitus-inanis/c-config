@@ -1,7 +1,7 @@
 #ifndef __XCFG_TREE_H__
 #define __XCFG_TREE_H__
 
-#include "xcfg-fld.h"
+#include "xcfg-rtti.h"
 
 /* TODO (butsuk_d): make xcfg_node and xcfg_tree opaque */
 
