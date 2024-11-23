@@ -3,14 +3,10 @@
 
 #include "xcfg-types.h"
 
+XCFG_EXPORT_ENTER
+
 xcfg *
 xcfg_create(xcfg_rtti *rtti);
-
-// xcfg *
-// xcfg_create(xcfg_str  type_name,
-//             xcfg_u32  type_size,
-//             xcfg_fld *root_pfld,
-//             xcfg_u32  root_nfld);
 
 void
 xcfg_destroy(xcfg *ctx);
@@ -63,5 +59,7 @@ xcfg_load_file(xcfg *ctx);
     but a pointer to object itself to copy value directly. */
 xcfg_ret
 XCFG_GET_BY_KEY(XCFG_SFX_obj)(xcfg *ctx, xcfg_str key, xcfg_obj obj);
+
+XCFG_EXPORT_LEAVE
 
 #endif//__XCFG_API_H__
