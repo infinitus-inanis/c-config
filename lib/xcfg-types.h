@@ -167,7 +167,8 @@ xcfg_tid2sfx(xcfg_tid tid);
 typedef xcfg_u64 xcfg_upd;
 
 /* Macros used to convert flag id to flag value */
-#define XCFG_UPD(id) ((xcfg_upd)(1) << (xcfg_upd)(id))
+#define XCFG_UPD(id)             ((xcfg_upd)(1) << (xcfg_upd)(id))
+#define XCFG_UPD_IS_SET(upd, id) ((xcfg_upd)(upd) & XCFG_UPD(id))
 
 
 /* Run-Time Type Info */

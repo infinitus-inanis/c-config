@@ -29,6 +29,9 @@ xcfg_save_file(xcfg *ctx);
 xcfg_ret
 xcfg_load_file(xcfg *ctx);
 
+xcfg_ret
+xcfg_monitor_file(xcfg *ctx);
+
 #define XCFG_SET_BY_REF(sfx) CONCATENATE(xcfg_set_by_ref_, sfx)
 #define XCFG_SFX_DO_EXPAND(sfx) \
   xcfg_ret XCFG_SET_BY_REF(sfx)(xcfg *ctx, xcfg_ptr ref, XCFG_TYPE(sfx) val);

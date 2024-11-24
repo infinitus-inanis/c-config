@@ -39,6 +39,7 @@ int main() {
   struct type_obj  obj;
   xcfg            *ctx;
   xcfg_ret         ret = XCFG_RET_SUCCESS;
+  xcfg_str         cfg_path = "test.cfg";
 
   memset(&cfg, 0, sizeof cfg);
   memset(&tmp, 0, sizeof tmp);
@@ -50,12 +51,9 @@ int main() {
     logi("test_cfg_ctx_create failure");
     return 1;
   }
-  xcfg_dump(ctx);
-
   test_cfg_xbind(ctx, &cfg);
-  test_cfg_dump("cfg", &cfg);
 
-  if (1) {
+  if (0) {
     logi("proc (set)...");
     ret |= xcfg_set_by_ref_s08(ctx, &cfg.type._s08, -8);
     ret |= xcfg_set_by_ref_s16(ctx, &cfg.type._s16, -16);
@@ -85,7 +83,7 @@ int main() {
     test_cfg_dump("cfg", &cfg);
   }
 
-  if (1) {
+  if (0) {
     logi("proc (get)...");
     ret |= xcfg_get_by_key_s08(ctx, "type._s08", &tmp.type._s08);
     ret |= xcfg_get_by_key_s16(ctx, "type._s16", &tmp.type._s16);
@@ -116,7 +114,7 @@ int main() {
 
   if (1) {
     logi("proc (bind_file)...");
-    ret |= xcfg_bind_file(ctx, "test.cfg");
+    ret |= xcfg_bind_file(ctx, cfg_path);
 
     if (ret != XCFG_RET_SUCCESS) {
       logi("failure: %d", ret);
@@ -125,7 +123,7 @@ int main() {
     logi("...success");
   }
 
-  if (1) {
+  if (0) {
     logi("proc (save_file)...");
     ret |= xcfg_save_file(ctx);
 
@@ -136,20 +134,27 @@ int main() {
     logi("...success");
   }
 
-  if (1) {
+  if (0) {
     logi("proc (load_file)...");
-    memset(&tmp, 0, sizeof tmp);
-    test_cfg_xbind(ctx, &tmp);
-
     ret |= xcfg_load_file(ctx);
-    test_cfg_xbind(ctx, &cfg);
 
     if (ret != XCFG_RET_SUCCESS) {
       logi("failure: %d", ret);
       goto error;
     }
     logi("...success");
-    test_cfg_dump("tmp", &tmp);
+    test_cfg_dump("cfg", &cfg);
+  }
+
+  if (1)  {
+    logi("proc (monitor_file)...");
+    ret |= xcfg_monitor_file(ctx);
+
+    if (ret != XCFG_RET_SUCCESS) {
+      logi("failure: %d", ret);
+      goto error;
+    }
+    logi("...success");
   }
 
 error:

@@ -98,6 +98,12 @@ xcfg_load_file(xcfg *ctx)
   return xcfg_file_load(&ctx->file, &ctx->tree, ctx->data);
 }
 
+xcfg_ret
+xcfg_monitor_file(xcfg *ctx)
+{
+  return xcfg_file_monitor(&ctx->file, &ctx->tree, ctx->data);
+}
+
 static xcfg_node *
 xcfg_get_node_by_ref(xcfg *ctx, xcfg_ptr ref)
 {

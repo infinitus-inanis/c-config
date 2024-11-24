@@ -3,7 +3,8 @@
 
 #include <stddef.h>
 
-#define FIELD_OF(type, member)        ((type *)0)->member
+#define MIMIC(type)                   ((type *)0)
+#define FIELD_OF(type, member)        (MIMIC(type)->member)
 #define FIELD_SIZE_OF(type, member)   ((size_t) sizeof(FIELD_OF(type, member)))
 #define FIELD_OFFSET_OF(type, member) ((size_t) & FIELD_OF(type, member))
 

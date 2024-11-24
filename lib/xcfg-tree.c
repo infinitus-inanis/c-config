@@ -94,8 +94,14 @@ xcfg_node_clear_upd(xcfg_node *node, xcfg_ptr data)
 void
 xcfg_node_raise_upd(xcfg_node *node, xcfg_ptr data)
 {
+  xcfg_upd *upd;
   do {
-    *xcfg_node_get_upd_ptr(node, data) |= XCFG_UPD(node->rtfi->upd);
+    upd = xcfg_node_get_upd_ptr(node, data);
+    if (XCFG_UPD_IS_SET(*upd, node->rtfi->upd))
+      break;
+
+    *upd |= XCFG_UPD(node->rtfi->upd);
+    logi("'%s' updated", node->data_fld_key);
   } while ((node = node->prev));
 }
 
@@ -345,7 +351,10 @@ xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr
   tvs_depth_first(&ttvs,
     (void **)  (tree->root.next),
     (uint32_t) (tree->root.nnext),
+
+    /* FIX (butsuk_d): this must be a precalculated max-depth */
     (uint32_t) (tree->size),
+
     xcfg_node_tvs_visit,
     xcfg_node_tvs_populate);
 }
