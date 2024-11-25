@@ -60,13 +60,17 @@ struct test_cfg {
   struct { xcfg_u08 val; } fake;
 };
 
+#define test_cfg_member(m) FIELD_OFFSET_OF(struct test_cfg, m)
+
+typedef void (* test_cfg_on_update)(struct test_cfg *cfg, void *data);
+
 void
 test_cfg_dispose(struct test_cfg *cfg);
 
-xcfg *
-test_cfg_xcreate();
+void
+test_cfg_destroy(struct test_cfg *cfg);
 
-xcfg_ret
-test_cfg_xbind(xcfg *ctx, struct test_cfg *cfg);
+xcfg *
+test_cfg_xcreate(test_cfg_on_update on_update);
 
 #endif//__CFG_TEST_H__

@@ -6,7 +6,12 @@
 #define MIMIC(type)                   ((type *)0)
 #define FIELD_OF(type, member)        (MIMIC(type)->member)
 #define FIELD_SIZE_OF(type, member)   ((size_t) sizeof(FIELD_OF(type, member)))
-#define FIELD_OFFSET_OF(type, member) ((size_t) & FIELD_OF(type, member))
+
+#ifdef offsetof
+# define FIELD_OFFSET_OF(type, member) offsetof(type, member)
+#else
+# define FIELD_OFFSET_OF(type, member) ((uintptr_t) &FIELD_OF(type, member))
+#endif
 
 #define GET_FIELD(base, offset, type) (type)((unsigned char *)(base) + (size_t)(offset))
 

@@ -43,14 +43,20 @@ test_cfg_dispose(struct test_cfg *cfg)
   memset(cfg, 0, sizeof *cfg);
 }
 
-xcfg *
-test_cfg_xcreate()
+void
+test_cfg_destroy(struct test_cfg *cfg)
 {
-  return xcfg_create(&_test_cfg);
+  if (!cfg)
+    return;
+
+  test_cfg_dispose(cfg);
+  free(cfg);
 }
 
-xcfg_ret
-test_cfg_xbind(xcfg *ctx, struct test_cfg *cfg)
+xcfg *
+test_cfg_xcreate(test_cfg_on_update on_update)
 {
-  return xcfg_set_data(ctx, cfg, sizeof *cfg);
+  return xcfg_create(&_test_cfg,
+                     (xcfg_on_update)(on_update),
+                     (xcfg_on_dispose)(test_cfg_dispose));
 }

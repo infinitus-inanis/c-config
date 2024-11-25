@@ -136,6 +136,8 @@ typedef char *    XCFG_TYPE(XCFG_SFX_str);
 
 typedef void *    XCFG_TYPE(XCFG_SFX_obj);
 
+typedef uintptr_t xcfg_off;
+
 
 /*****************************************
  * Runtime type ids for underlying types */
@@ -179,6 +181,12 @@ typedef struct xcfg_rtfi xcfg_rtfi;
 
 /* Main config context handle */
 typedef struct xcfg xcfg;
+
+/* Dispose method for underlying config structure */
+typedef void (* xcfg_on_dispose)(xcfg_ptr cfg);
+
+/* Callback for when underlying config is updated */
+typedef void (* xcfg_on_update)(xcfg_ptr cfg, xcfg_ptr data);
 
 XCFG_EXPORT_LEAVE
 

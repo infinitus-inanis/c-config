@@ -4,7 +4,7 @@
 #include "xcfg-types.h"
 
 typedef struct {
-  xcfg_u32 off;
+  xcfg_off off;
   xcfg_u32 size;
 } xcfg_fld;
 

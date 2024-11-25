@@ -88,7 +88,13 @@ xcfg_node_type_check(xcfg_node *node, xcfg_tid tid)
 void
 xcfg_node_clear_upd(xcfg_node *node, xcfg_ptr data)
 {
-  *xcfg_node_get_upd_ptr(node, data) &= ~XCFG_UPD(node->rtfi->upd);
+  xcfg_upd *upd;
+
+  upd = xcfg_node_get_upd_ptr(node, data);
+  if (!upd)
+    return;
+
+  *upd &= ~XCFG_UPD(node->rtfi->upd);
 }
 
 void
@@ -97,11 +103,13 @@ xcfg_node_raise_upd(xcfg_node *node, xcfg_ptr data)
   xcfg_upd *upd;
   do {
     upd = xcfg_node_get_upd_ptr(node, data);
+    if (!upd)
+      continue;
+
     if (XCFG_UPD_IS_SET(*upd, node->rtfi->upd))
       break;
 
     *upd |= XCFG_UPD(node->rtfi->upd);
-    logi("'%s' updated", node->data_fld_key);
   } while ((node = node->prev));
 }
 
@@ -316,11 +324,15 @@ xcfg_tree_build(xcfg_tree *tree, xcfg_rtti *rtti)
   tree->by_off = ht_create(HT_KEY_INT, 32);
   tree->by_key = ht_create(HT_KEY_STR, 32);
 
-  /* setup root field info */
+  /* setup root proxy node field info */
   tree->rtfi.tid      = XCFG_TID_obj;
+  tree->rtfi.key      = NULL;
+  tree->rtfi.upd      = 0;
+  tree->rtfi.fld.off  = 0;
+  tree->rtfi.fld.size = rtti->size;
   tree->rtfi.obj.rtti = rtti;
 
-  /* setup root and build a tree itself */
+  /* setup root proxy node and build a tree itself */
   tree->root.rtfi  = &tree->rtfi;
   tree->root.prev  = NULL;
   tree->root.nnext = rtti->nrtfi;
@@ -398,13 +410,23 @@ xcfg_tree_dump(xcfg_tree *tree, xcfg_ptr data)
 }
 
 xcfg_node *
-xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_u32 off)
+xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_off off)
 {
+  /* fast bounds check */
+  if (off > tree->rtti->size)
+    return NULL;
+
+  if (off == 0)
+    return &tree->root;
+
   return (xcfg_node *)(ht_get(tree->by_off, ht_key_int(off)));
 }
 
 xcfg_node *
 xcfg_tree_get_node_by_key(xcfg_tree *tree, xcfg_str key)
 {
+  if (!key || !key[0])
+    return &tree->root;
+
   return (xcfg_node *)(ht_get(tree->by_key, ht_key_str(key)));
 }

@@ -77,7 +77,7 @@ void
 xcfg_tree_dump(xcfg_tree *tree, xcfg_ptr data);
 
 xcfg_node *
-xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_u32 off);
+xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_off off);
 
 xcfg_node *
 xcfg_tree_get_node_by_key(xcfg_tree *tree, xcfg_str key);

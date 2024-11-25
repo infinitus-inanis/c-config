@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <memory.h>
 
-#define logi(fmt, args...)   printf("[test]: " fmt "\n", ## args)
+#define logi(fmt, args...)          printf("[test]: " fmt "\n", ## args)
 #define logii(depth, fmt, args...)  logi(INDENT(fmt), INDENTARG(depth), ## args)
 
 static void
@@ -33,134 +33,192 @@ test_cfg_dump(char *pfx, struct test_cfg *cfg)
   logii(2, "._str: %s", cfg->type._str);
 }
 
+static void
+on_update(struct test_cfg *cfg, void *data)
+{
+  test_cfg_dump((char *)(data), cfg);
+}
+
 int main() {
-  struct test_cfg  cfg;
-  struct test_cfg  tmp;
-  struct type_obj  obj;
-  xcfg            *ctx;
+  xcfg            *cfg;
+  struct test_cfg *cfg_data, tmp_data;
+  struct type_obj  obj_data;
   xcfg_ret         ret = XCFG_RET_SUCCESS;
   xcfg_str         cfg_path = "test.cfg";
 
-  memset(&cfg, 0, sizeof cfg);
-  memset(&tmp, 0, sizeof tmp);
-  memset(&obj, 0, sizeof obj);
+  memset(&tmp_data, 0, sizeof tmp_data);
+  memset(&obj_data, 0, sizeof obj_data);
 
   logi("init...");
-  ctx = test_cfg_xcreate();
-  if (!ctx) {
-    logi("test_cfg_ctx_create failure");
+  cfg = test_cfg_xcreate(on_update);
+  if (!cfg) {
+    logi("test_cfg_xcreate failure");
     return 1;
   }
-  test_cfg_xbind(ctx, &cfg);
+  cfg_data = xcfg_get_data(cfg);
 
-  if (0) {
-    logi("proc (set)...");
-    ret |= xcfg_set_by_ref_s08(ctx, &cfg.type._s08, -8);
-    ret |= xcfg_set_by_ref_s16(ctx, &cfg.type._s16, -16);
-    ret |= xcfg_set_by_ref_s32(ctx, &cfg.type._s32, -32);
-    ret |= xcfg_set_by_ref_s64(ctx, &cfg.type._s64, -64);
+  if (1) { logi("test (by_off)");
+    if (1) { logi("test (set_by_off)...");
+      /* signed   */
+      ret |= xcfg_set_by_off_s08(cfg, test_cfg_member(type._s08), -8);
+      ret |= xcfg_set_by_off_s16(cfg, test_cfg_member(type._s16), -16);
+      ret |= xcfg_set_by_off_s32(cfg, test_cfg_member(type._s32), -32);
+      ret |= xcfg_set_by_off_s64(cfg, test_cfg_member(type._s64), -64);
+      /* unsigned */
+      ret |= xcfg_set_by_off_u08(cfg, test_cfg_member(type._u08), 8);
+      ret |= xcfg_set_by_off_u16(cfg, test_cfg_member(type._u16), 16);
+      ret |= xcfg_set_by_off_u32(cfg, test_cfg_member(type._u32), 32);
+      ret |= xcfg_set_by_off_u64(cfg, test_cfg_member(type._u64), 64);
+      /* float    */
+      ret |= xcfg_set_by_off_f32(cfg, test_cfg_member(type._f32), 0.32f);
+      ret |= xcfg_set_by_off_f64(cfg, test_cfg_member(type._f64), 0.64);
 
-    ret |= xcfg_set_by_ref_u08(ctx, &cfg.type._u08, 8);
-    ret |= xcfg_set_by_ref_u16(ctx, &cfg.type._u16, 16);
-    ret |= xcfg_set_by_ref_u32(ctx, &cfg.type._u32, 32);
-    ret |= xcfg_set_by_ref_u64(ctx, &cfg.type._u64, 64);
+      obj_data.huh = 42;
+      ret |= xcfg_set_by_off_ptr(cfg, test_cfg_member(type._ptr), &obj_data);
+      ret |= xcfg_set_by_off_obj(cfg, test_cfg_member(type._obj), &obj_data);
+      obj_data.huh = 69;
 
-    ret |= xcfg_set_by_ref_f32(ctx, &cfg.type._f32, 0.32f);
-    ret |= xcfg_set_by_ref_f64(ctx, &cfg.type._f64, 0.64);
+      ret |= xcfg_set_by_off_str(cfg, test_cfg_member(type._str), "hello world");
 
-    obj.huh = 42;
-    ret |= xcfg_set_by_ref_ptr(ctx, &cfg.type._ptr, &obj);
-    ret |= xcfg_set_by_ref_obj(ctx, &cfg.type._obj, &obj);
-    obj.huh = 69;
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("...failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+      xcfg_invoke_upd(cfg, "cfg_data");
 
-    ret |= xcfg_set_by_ref_str(ctx, &cfg.type._str, "hello world");
+    } /* set_by_off */
+    if (0) { logi("test (get_by_off)...");
+      /* signed   */
+      ret |= xcfg_get_by_off_s08(cfg, test_cfg_member(type._s08), &tmp_data.type._s08);
+      ret |= xcfg_get_by_off_s16(cfg, test_cfg_member(type._s16), &tmp_data.type._s16);
+      ret |= xcfg_get_by_off_s32(cfg, test_cfg_member(type._s32), &tmp_data.type._s32);
+      ret |= xcfg_get_by_off_s64(cfg, test_cfg_member(type._s64), &tmp_data.type._s64);
+      /* unsigned */
+      ret |= xcfg_get_by_off_u08(cfg, test_cfg_member(type._u08), &tmp_data.type._u08);
+      ret |= xcfg_get_by_off_u16(cfg, test_cfg_member(type._u16), &tmp_data.type._u16);
+      ret |= xcfg_get_by_off_u32(cfg, test_cfg_member(type._u32), &tmp_data.type._u32);
+      ret |= xcfg_get_by_off_u64(cfg, test_cfg_member(type._u64), &tmp_data.type._u64);
+      /* float    */
+      ret |= xcfg_get_by_off_f32(cfg, test_cfg_member(type._f32), &tmp_data.type._f32);
+      ret |= xcfg_get_by_off_f64(cfg, test_cfg_member(type._f64), &tmp_data.type._f64);
 
-    if (ret != XCFG_RET_SUCCESS) {
-      logi("...failure: %d", ret);
-      goto error;
-    }
-    logi("...success");
-    test_cfg_dump("cfg", &cfg);
-  }
+      ret |= xcfg_get_by_off_ptr(cfg, test_cfg_member(type._ptr), &tmp_data.type._ptr);
+      ret |= xcfg_get_by_off_obj(cfg, test_cfg_member(type._obj), &tmp_data.type._obj);
+      ret |= xcfg_get_by_off_str(cfg, test_cfg_member(type._str), &tmp_data.type._str);
 
-  if (0) {
-    logi("proc (get)...");
-    ret |= xcfg_get_by_key_s08(ctx, "type._s08", &tmp.type._s08);
-    ret |= xcfg_get_by_key_s16(ctx, "type._s16", &tmp.type._s16);
-    ret |= xcfg_get_by_key_s32(ctx, "type._s32", &tmp.type._s32);
-    ret |= xcfg_get_by_key_s64(ctx, "type._s64", &tmp.type._s64);
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("...failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+      test_cfg_dump("tmp_data", &tmp_data);
+      test_cfg_dispose(&tmp_data);
+    } /* get_by_off */
+  } /* by_off */
 
-    ret |= xcfg_get_by_key_u08(ctx, "type._u08", &tmp.type._u08);
-    ret |= xcfg_get_by_key_u16(ctx, "type._u16", &tmp.type._u16);
-    ret |= xcfg_get_by_key_u32(ctx, "type._u32", &tmp.type._u32);
-    ret |= xcfg_get_by_key_u64(ctx, "type._u64", &tmp.type._u64);
+  if (0) { logi("test (by_key)...");
+    if (0) { logi("test (set_by_key)...");
+      /* signed   */
+      ret |= xcfg_set_by_key_s08(cfg, "type._s08", INT8_MIN);
+      ret |= xcfg_set_by_key_s16(cfg, "type._s16", INT16_MIN);
+      ret |= xcfg_set_by_key_s32(cfg, "type._s32", INT32_MIN);
+      ret |= xcfg_set_by_key_s64(cfg, "type._s64", INT64_MIN);
+      /* unsigned */
+      ret |= xcfg_set_by_key_u08(cfg, "type._u08", UINT8_MAX);
+      ret |= xcfg_set_by_key_u16(cfg, "type._u16", UINT16_MAX);
+      ret |= xcfg_set_by_key_u32(cfg, "type._u32", UINT32_MAX);
+      ret |= xcfg_set_by_key_u64(cfg, "type._u64", UINT64_MAX);
+      /* float    */
+      ret |= xcfg_set_by_key_f32(cfg, "type._f32", -0.32);
+      ret |= xcfg_set_by_key_f64(cfg, "type._f64", -0.64);
 
-    ret |= xcfg_get_by_key_f32(ctx, "type._f32", &tmp.type._f32);
-    ret |= xcfg_get_by_key_f64(ctx, "type._f64", &tmp.type._f64);
+      obj_data.huh = -42;
+      ret |= xcfg_set_by_key_ptr(cfg, "type._ptr", &obj_data);
+      ret |= xcfg_set_by_key_obj(cfg, "type._obj", &obj_data);
+      obj_data.huh = -69;
 
-    ret |= xcfg_get_by_key_ptr(ctx, "type._ptr", (xcfg_ptr *)(&tmp.type._ptr));
-    ret |= xcfg_get_by_key_obj(ctx, "type._obj", &tmp.type._obj);
+      ret |= xcfg_set_by_key_str(cfg, "type._str", "dlrow olleh");
 
-    ret |= xcfg_get_by_key_str(ctx, "type._str", &tmp.type._str);
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("...failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+      xcfg_invoke_upd(cfg, "cfg_data");
+    } /* set_by_key */
+    if (0) { logi("test (get_by_key)...");
+      /* signed   */
+      ret |= xcfg_get_by_key_s08(cfg, "type._s08", &tmp_data.type._s08);
+      ret |= xcfg_get_by_key_s16(cfg, "type._s16", &tmp_data.type._s16);
+      ret |= xcfg_get_by_key_s32(cfg, "type._s32", &tmp_data.type._s32);
+      ret |= xcfg_get_by_key_s64(cfg, "type._s64", &tmp_data.type._s64);
+      /* unsigned */
+      ret |= xcfg_get_by_key_u08(cfg, "type._u08", &tmp_data.type._u08);
+      ret |= xcfg_get_by_key_u16(cfg, "type._u16", &tmp_data.type._u16);
+      ret |= xcfg_get_by_key_u32(cfg, "type._u32", &tmp_data.type._u32);
+      ret |= xcfg_get_by_key_u64(cfg, "type._u64", &tmp_data.type._u64);
+      /* float    */
+      ret |= xcfg_get_by_key_f32(cfg, "type._f32", &tmp_data.type._f32);
+      ret |= xcfg_get_by_key_f64(cfg, "type._f64", &tmp_data.type._f64);
 
-    if (ret != XCFG_RET_SUCCESS) {
-      logi("...failure: %d", ret);
-      goto error;
-    }
-    logi("...success");
-    test_cfg_dump("tmp", &tmp);
-    test_cfg_dispose(&tmp);
-  }
+      ret |= xcfg_get_by_key_ptr(cfg, "type._ptr", &tmp_data.type._ptr);
+      ret |= xcfg_get_by_key_obj(cfg, "type._obj", &tmp_data.type._obj);
 
-  if (1) {
-    logi("proc (bind_file)...");
-    ret |= xcfg_bind_file(ctx, cfg_path);
+      ret |= xcfg_get_by_key_str(cfg, "type._str", &tmp_data.type._str);
 
-    if (ret != XCFG_RET_SUCCESS) {
-      logi("failure: %d", ret);
-      goto error;
-    }
-    logi("...success");
-  }
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("...failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+      test_cfg_dump("tmp_data", &tmp_data);
+      test_cfg_dispose(&tmp_data);
+    } /* set_by_key */
+  } /* by_key */
 
-  if (0) {
-    logi("proc (save_file)...");
-    ret |= xcfg_save_file(ctx);
+  if (1) { logi("test (file)");
+    if (1) { logi("test (bind_file)...");
+      ret |= xcfg_bind_file(cfg, cfg_path);
 
-    if (ret != XCFG_RET_SUCCESS) {
-      logi("failure: %d", ret);
-      goto error;
-    }
-    logi("...success");
-  }
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+    } /* bind_file */
+    if (0) { logi("test (save_file)...");
+      ret |= xcfg_save_file(cfg);
 
-  if (0) {
-    logi("proc (load_file)...");
-    ret |= xcfg_load_file(ctx);
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+    } /* save_file */
+    if (0) { logi("test (load_file)...");
+      ret |= xcfg_load_file(cfg);
 
-    if (ret != XCFG_RET_SUCCESS) {
-      logi("failure: %d", ret);
-      goto error;
-    }
-    logi("...success");
-    test_cfg_dump("cfg", &cfg);
-  }
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+      test_cfg_dump("cfg_data", cfg_data);
+    } /* load_file */
+    if (1) { logi("test (monitor_file)...");
+      ret |= xcfg_monitor_file(cfg);
 
-  if (1)  {
-    logi("proc (monitor_file)...");
-    ret |= xcfg_monitor_file(ctx);
-
-    if (ret != XCFG_RET_SUCCESS) {
-      logi("failure: %d", ret);
-      goto error;
-    }
-    logi("...success");
-  }
-
+      if (ret != XCFG_RET_SUCCESS) {
+        logi("failure: %d", ret);
+        goto error;
+      }
+      logi("...success");
+    } /* monitor_file */
+  } /* file */
 error:
-  xcfg_destroy(ctx);
-  test_cfg_dispose(&tmp);
-  test_cfg_dispose(&cfg);
+  test_cfg_dispose(&tmp_data);
+  xcfg_destroy(cfg);
 
   return 0;
 }

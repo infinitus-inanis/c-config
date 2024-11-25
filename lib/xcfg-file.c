@@ -258,7 +258,7 @@ xcfg_file_set_path(xcfg_file *file, xcfg_str path)
     }
   }
 
-  if (!*file->dir) {
+  if (!file->dir[0]) {
     logi("failed to resolve directory for: %s", copy);
     return XCFG_RET_FAILRUE;
   }
@@ -279,9 +279,9 @@ xcfg_file_set_path(xcfg_file *file, xcfg_str path)
     snprintf(file->path, sizeof(file->path), "%s/%s", file->dir, file->name);
   }
 
-  logi("path: %s", file->path);
-  logi("name: %s", file->name);
   logi("dir:  %s", file->dir);
+  logi("name: %s", file->name);
+  logi("path: %s", file->path);
 
   return XCFG_RET_SUCCESS;
 }
@@ -326,7 +326,7 @@ xcfg_file_save(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
 {
   save_ctx save;
 
-  if (!file->path || !(*file->path))
+  if (!file->path || !file->path[0])
     return XCFG_RET_INVALID;
 
   save.data = data;
@@ -348,7 +348,7 @@ xcfg_file_save(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
 }
 
 #define logiload(path, line, fmt, args...) \
-  logi("[load](%s:%u) " fmt, (path), (xcfg_u32)(line), ## args)
+  logi("[loading:%s:%u] " fmt, (path), (xcfg_u32)(line), ## args)
 
 static xcfg_ret
 xcfg_file_load_impl(xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
@@ -360,7 +360,7 @@ xcfg_file_load_impl(xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
   xcfg_str  t0, t1;
   xcfg_ret  ret = XCFG_RET_FAILRUE;
 
-  if (!path || !(*path))
+  if (!path || !path[0])
     return XCFG_RET_INVALID;
 
   stream = fopen(path, "r");
@@ -385,10 +385,10 @@ xcfg_file_load_impl(xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
 
     type_size = strtoul(t0, NULL, 16);
     if (type_size != tree->rtti->size) {
-      logiload(path, line, "cfg type size is invalid: %u != %u", type_size, tree->rtti->size);
+      logiload(path, line, "type size is invalid: %u != %u", type_size, tree->rtti->size);
       goto out;
     }
-    logiload(path, line, "cfg type size: %u", type_size);
+    logiload(path, line, "type size: %u", type_size);
 
     memset(rbuf, 0, sizeof rbuf);
     if (line++, !fgets(rbuf, rlen, stream))
@@ -409,10 +409,10 @@ xcfg_file_load_impl(xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
     /* here `t0` is a valid type name string */
 
     if (strcmp(t0, tree->rtti->name)) {
-      logiload(path, line, "cfg type name is invalid: '%s' != '%s'", t0, tree->rtti->name);
+      logiload(path, line, "type name is invalid: '%s' != '%s'", t0, tree->rtti->name);
       goto out;
     }
-    logiload(path, line, "cfg type name: %s", t0);
+    logiload(path, line, "type name: %s", t0);
   }
   { /* load fields */
     xcfg_node *base = &tree->root;
@@ -625,7 +625,7 @@ xcfg_file_monitor(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
     return XCFG_RET_INVALID;
   }
 
-  if (!(*file->dir)
+  if (!(file->dir[0])
    ||  (stat(file->dir, &st))
    || !(st.st_mode & S_IFDIR)
   ) {
@@ -633,12 +633,12 @@ xcfg_file_monitor(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
     return XCFG_RET_FAILRUE;
   }
 
-  if (!(*file->name)) {
+  if (!file->name[0]) {
     logi("couldn't start monitor: invalid file name");
     return XCFG_RET_FAILRUE;
   }
 
-  if (!(*file->path)) {
+  if (!file->path[0]) {
     logi("couldn't start monitor: invalid file path");
     return XCFG_RET_FAILRUE;
   }
