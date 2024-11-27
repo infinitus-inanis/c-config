@@ -107,7 +107,7 @@ int main() {
       ret |= xcfg_set_obj(cfg, test_cfg_key_off(type._obj), &obj_data);
       obj_data.huh = 69;
 
-      xcfg_update(cfg, "cfg_data");
+      xcfg_update_notify(cfg, "cfg_data");
       if (ret != XCFG_RET_SUCCESS) {
         logi("...failure: %d", ret);
         goto error;
@@ -115,7 +115,7 @@ int main() {
       logi("...success");
 
     } /* set_by_off */
-    if (1) { logi("test (get_by_off)...");
+    if (0) { logi("test (get_by_off)...");
       /* signed   */
       ret |= xcfg_get_s08(cfg, test_cfg_key_off(type._s08), &tmp_data.type._s08);
       ret |= xcfg_get_s16(cfg, test_cfg_key_off(type._s16), &tmp_data.type._s16);
@@ -145,7 +145,7 @@ int main() {
     } /* get_by_off */
   } /* by_off */
 
-  if (1) { logi("test (by_key)...");
+  if (0) { logi("test (by_key)...");
     if (1) { logi("test (set_by_key)...");
       /* signed   */
       ret |= xcfg_set_s08(cfg, test_cfg_key_str("type._s08"), INT8_MIN);
@@ -173,7 +173,7 @@ int main() {
         goto error;
       }
       logi("...success");
-      xcfg_update(cfg, "cfg_data");
+      xcfg_update_notify(cfg, "cfg_data");
     } /* set_by_key */
     if (1) { logi("test (get_by_key)...");
       /* signed   */
@@ -205,9 +205,9 @@ int main() {
     } /* set_by_key */
   } /* by_key */
 
-  if (0) { logi("test (file)");
+  if (1) { logi("test (file)");
     if (0) { logi("test (save_file)...");
-      ret |= xcfg_save_to_file(cfg, cfg_path);
+      ret |= xcfg_save_file(cfg, cfg_path);
 
       if (ret != XCFG_RET_SUCCESS) {
         logi("failure: %d", ret);
@@ -216,7 +216,7 @@ int main() {
       logi("...success");
     } /* save_file */
     if (0) { logi("test (load_file)...");
-      ret |= xcfg_load_from_file(cfg, cfg_path);
+      ret |= xcfg_load_file(cfg, cfg_path);
 
       if (ret != XCFG_RET_SUCCESS) {
         logi("failure: %d", ret);

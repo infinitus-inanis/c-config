@@ -200,6 +200,27 @@ typedef struct {
   void   (* on_update)  (void *cfg, void *udata);
 } xcfg_cbs;
 
+/* Type of a key for search */
+typedef enum {
+  XCFG_KEY_OFF,
+  XCFG_KEY_STR,
+} xcfg_key_type;
+
+/* Key for searching a field */
+typedef struct {
+  xcfg_key_type type;
+  union {
+    xcfg_off off;
+    xcfg_str str;
+  };
+} xcfg_key;
+
+/* Constructor for 'by offset' key */
+#define xcfg_key_off(type, member) (xcfg_key) { XCFG_KEY_OFF, .off = FIELD_OFFSET_OF(type, member) }
+
+/* Constructor for 'by string' key*/
+#define xcfg_key_str(value)        (xcfg_key) { XCFG_KEY_STR, .str = (value) }
+
 XCFG_EXPORT_LEAVE
 
 #endif//__XCFG_TYPES_H__

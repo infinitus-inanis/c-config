@@ -1,5 +1,5 @@
-#ifndef __XCFG_BASE_H__
-#define __XCFG_BASE_H__
+#ifndef __XCFG_UTILS_H__
+#define __XCFG_UTILS_H__
 
 #include <stddef.h>
 
@@ -7,8 +7,6 @@
 #define FIELD_OF(type, member)      (MIMIC(type)->member)
 #define FIELD_TYPE_OF(type, member)  typeof(FIELD_OF(type, member))
 #define FIELD_SIZE_OF(type, member) ((size_t) sizeof(FIELD_OF(type, member)))
-
-#define PUNE_VALUE(from, to, val)   ((union{from _; to _v;}){(val)}._v)
 
 #ifdef offsetof
 # define FIELD_OFFSET_OF(type, member) offsetof(type, member)
@@ -48,4 +46,4 @@
 # define XCFG_EXPORT_LEAVE
 #endif
 
-#endif//__XCFG_BASE_H__
+#endif//__XCFG_UTILS_H__

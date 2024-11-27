@@ -10,26 +10,33 @@ CFG_DIR = lib
 CFG_LIB = $(CFG_DIR)/libxcfg.a
 
 CFG_DEP = \
-	$(CFG_DIR)/utils/hashtable.h    \
-	$(CFG_DIR)/utils/traverse.h     \
-	$(CFG_DIR)/utils/inotify-file.h \
-	$(CFG_DIR)/utils/file-monitor.h \
-	$(CFG_DIR)/xcfg-utils.h         \
-	$(CFG_DIR)/xcfg-types.h         \
-	$(CFG_DIR)/xcfg-rtti.h          \
-	$(CFG_DIR)/xcfg-tree.h          \
-	$(CFG_DIR)/xcfg-api.h
+	$(CFG_DIR)/inc/api/xcfg-utils.h     \
+	$(CFG_DIR)/inc/api/xcfg-types.h     \
+	$(CFG_DIR)/inc/api/xcfg-rtti.h      \
+	$(CFG_DIR)/inc/api/xcfg.h           \
+	$(CFG_DIR)/inc/api/xcfg-data.h      \
+	$(CFG_DIR)/inc/api/xcfg-file.h      \
+	$(CFG_DIR)/src/utils/hashtable.h    \
+	$(CFG_DIR)/src/utils/traverse.h     \
+	$(CFG_DIR)/src/utils/inotify-file.h \
+	$(CFG_DIR)/src/utils/file-monitor.h \
+	$(CFG_DIR)/src/xcfg-impl.h          \
+	$(CFG_DIR)/src/xcfg-tree.h
 
 CFG_OBJ = \
-	$(CFG_DIR)/utils/hashtable.o    \
-	$(CFG_DIR)/utils/traverse.o     \
-	$(CFG_DIR)/utils/inotify-file.o \
-	$(CFG_DIR)/utils/file-monitor.o \
-	$(CFG_DIR)/xcfg-types.o         \
-	$(CFG_DIR)/xcfg-tree.o          \
-	$(CFG_DIR)/xcfg-api.o
+	$(CFG_DIR)/src/utils/hashtable.o    \
+	$(CFG_DIR)/src/utils/traverse.o     \
+	$(CFG_DIR)/src/utils/inotify-file.o \
+	$(CFG_DIR)/src/utils/file-monitor.o \
+	$(CFG_DIR)/src/xcfg-types.o         \
+	$(CFG_DIR)/src/xcfg-tree.o          \
+	$(CFG_DIR)/src/xcfg.o               \
+	$(CFG_DIR)/src/xcfg-data.o          \
+	$(CFG_DIR)/src/xcfg-file-save.o     \
+	$(CFG_DIR)/src/xcfg-file-load.o     \
+	$(CFG_DIR)/src/xcfg-file-monitor.o
 
-CFG_CCF = -I$(CFG_DIR)
+CFG_CCF = -I$(CFG_DIR)/inc -I$(CFG_DIR)/inc/api -I$(CFG_DIR)/src
 
 $(CFG_DIR)/%.o: $(CFG_DIR)/%.c $(CFG_DEP)
 	$(CC) -c -o $@ $< $(CFG_CCF) $(CCF)

@@ -209,14 +209,6 @@ static xcfg_type_ops type_ops[XCFG_TID_COUNT] = {
 #undef XCFG_SFX_DO_EXPAND
 };
 
-void
-xcfg_file_dispose(xcfg_file *file)
-{
-  if (!file)
-    return;
-
-}
-
 static xcfg_ret
 xcfg_node_tvs_do_save(xcfg_node_tvs *curr, xcfg_ptr context)
 {
@@ -253,7 +245,7 @@ xcfg_node_tvs_do_save(xcfg_node_tvs *curr, xcfg_ptr context)
 }
 
 xcfg_ret
-xcfg_file_save(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
+xcfg_file_save(xcfg_tree *tree, xcfg_ptr data)
 {
 //   save_ctx save;
 //
@@ -439,78 +431,7 @@ out:
 }
 
 xcfg_ret
-xcfg_file_load(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
+xcfg_file_load(xcfg_tree *tree, xcfg_ptr data)
 {
   // return xcfg_file_load_impl(file->path, tree, data);
-}
-
-static void
-inotify_on_create(void *data)
-{
-  xcfg_inotify_ctx *ctx = data;
-  logi("created");
-}
-
-static void
-inotify_on_remove(void *data)
-{
-  xcfg_inotify_ctx *ctx = data;
-  logi("removed");
-}
-
-static void
-inotify_on_modify(void *data)
-{
-  xcfg_inotify_ctx *ctx = data;
-  logi("modified");
-}
-
-static inotify_file_ops inotify_ops = {
-  .on_create = inotify_on_create,
-  .on_remove = inotify_on_remove,
-  .on_modify = inotify_on_modify,
-};
-
-static void *
-xcfg_inotify_routine(void *arg)
-{
-  xcfg_inotify *monitor = arg;
-  int ret;
-
-  while (monitor->alive) {
-    ret = inotify_file_execute(&monitor->in, &monitor->ctx);
-    if (ret < 0)
-      break;
-    
-    usleep(250 * 1000);
-  }
-
-  monitor->alive = false;
-  return NULL;
-}
-
-xcfg_ret
-xcfg_file_monitor(xcfg_file *file, xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
-{
-  xcfg_inotify *monitor = &file->monitor;
-  int ret;
-
-  ret = inotify_file_setup(&monitor->in, &inotify_ops, path);
-  if (ret < 0)
-    return XCFG_RET_FAILRUE;
-
-  monitor->ctx.tree = tree;
-  monitor->ctx.data = data;
-
-  monitor->tid   = -1;
-  monitor->alive = true;
-  ret = pthread_create(&monitor->tid, NULL, xcfg_inotify_routine, monitor);
-  if (ret < 0) {
-    monitor->tid   = -1;
-    monitor->alive = false;
-    inotify_file_dispose(&monitor->in);
-    return XCFG_RET_FAILRUE;
-  }
-
-  return XCFG_RET_SUCCESS;
 }

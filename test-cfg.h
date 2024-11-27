@@ -1,7 +1,7 @@
 #ifndef __CFG_TEST_H__
 #define __CFG_TEST_H__
 
-#include "lib/xcfg-api.h"
+#include "xcfg-api.h"
 
 enum type_obj_upd {
   TYPE_OBJ_UPD_HUH

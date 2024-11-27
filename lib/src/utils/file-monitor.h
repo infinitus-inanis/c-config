@@ -22,9 +22,9 @@ const char *
 file_monitor_get_path(file_monitor *fm);
 
 void
-file_monitor_pause(file_monitor *fm);
+file_monitor_suspend(file_monitor *fm);
 
 void
-file_monitor_resume(file_monitor *fm);
+file_monitor_proceed(file_monitor *fm);
 
 #endif//__FILE_MONITOR_H__
