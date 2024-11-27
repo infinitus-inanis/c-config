@@ -60,9 +60,13 @@ struct test_cfg {
   struct { xcfg_u08 val; } fake;
 };
 
-#define test_cfg_member(m) FIELD_OFFSET_OF(struct test_cfg, m)
+#define test_cfg_key_off(member) xcfg_key_off(struct test_cfg, member)
+#define test_cfg_key_str(value)  xcfg_key_str(value)
 
-typedef void (* test_cfg_on_update)(struct test_cfg *cfg, void *data);
+typedef void (* test_cfg_on_update)(struct test_cfg *cfg, void *udata);
+
+struct test_cfg *
+test_cfg_create();
 
 void
 test_cfg_dispose(struct test_cfg *cfg);

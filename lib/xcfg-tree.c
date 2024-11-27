@@ -19,12 +19,14 @@ xcfg_node_destroy(xcfg_node *node)
   if (!node)
     return;
 
-  for (i = 0; i < node->nnext; ++i)
+  if (node->next) {
+    for (i = 0; i < node->nnext; ++i)
     xcfg_node_destroy(node->next[i]);
 
-  free(node->next);
+    free(node->next);
+  }
 
-  free(node->data_fld_key);
+  free(node->data_fld_str);
   free(node);
 }
 
@@ -266,7 +268,7 @@ xcfg_node_tvs_populate(void *context, tvs_node *curr, void ***pnext, uint32_t *n
 }
 
 static xcfg_node *
-xcfg_tree_create_node(xcfg_u32 upd_off, xcfg_rtfi *rtfi, xcfg_node *prev, ht_ctx *by_off, ht_ctx *by_key)
+xcfg_tree_create_node(xcfg_u32 upd_off, xcfg_rtfi *rtfi, xcfg_node *prev, ht_ctx *by_off, ht_ctx *by_str)
 {
   xcfg_node *node = calloc(1, sizeof *node);
 
@@ -277,16 +279,16 @@ xcfg_tree_create_node(xcfg_u32 upd_off, xcfg_rtfi *rtfi, xcfg_node *prev, ht_ctx
   node->prev = prev;
   if (!node->prev) {
     /* branch start */
-    asprintf(&node->data_fld_key, "%s", node->rtfi->key);
+    asprintf(&node->data_fld_str, "%s", node->rtfi->str);
   } else {
     /* branch child */
-    asprintf(&node->data_fld_key, "%s.%s", node->prev->data_fld_key, node->rtfi->key);
+    asprintf(&node->data_fld_str, "%s.%s", node->prev->data_fld_str, node->rtfi->str);
     node->data_fld_off += node->prev->data_fld_off;
     node->data_upd_off += node->prev->data_fld_off;
   }
 
   ht_set(by_off, ht_key_int(node->data_fld_off), node);
-  ht_set(by_key, ht_key_str(node->data_fld_key), node);
+  ht_set(by_str, ht_key_str(node->data_fld_str), node);
 
   if (node->rtfi->tid == XCFG_TID_obj /* sub-nodes allowed only for `XCFG_TID_obj` fields */
    && node->rtfi->obj.rtti            /* there must be a type info for that object        */
@@ -299,7 +301,7 @@ xcfg_tree_create_node(xcfg_u32 upd_off, xcfg_rtfi *rtfi, xcfg_node *prev, ht_ctx
     node->next  = calloc(node->nnext, sizeof *node->next);
     for (i = 0; i < node->nnext; ++i) {
       node->next[i] =
-        xcfg_tree_create_node(obj_rtti->upd.off, &obj_rtti->rtfi[i], node, by_off, by_key);
+        xcfg_tree_create_node(obj_rtti->upd.off, &obj_rtti->rtfi[i], node, by_off, by_str);
     }
   }
 
@@ -322,11 +324,11 @@ xcfg_tree_build(xcfg_tree *tree, xcfg_rtti *rtti)
 
   /* setup hashtables for fast node lookup */
   tree->by_off = ht_create(HT_KEY_INT, 32);
-  tree->by_key = ht_create(HT_KEY_STR, 32);
+  tree->by_str = ht_create(HT_KEY_STR, 32);
 
   /* setup root proxy node field info */
   tree->rtfi.tid      = XCFG_TID_obj;
-  tree->rtfi.key      = NULL;
+  tree->rtfi.str      = NULL;
   tree->rtfi.upd      = 0;
   tree->rtfi.fld.off  = 0;
   tree->rtfi.fld.size = rtti->size;
@@ -342,7 +344,7 @@ xcfg_tree_build(xcfg_tree *tree, xcfg_rtti *rtti)
       but they are still related to root, so we link them manualy after creation */
   for (i = 0; i < tree->root.nnext; ++i) {
     tree->root.next[i] =
-      xcfg_tree_create_node(rtti->upd.off, &rtti->rtfi[i], NULL, tree->by_off, tree->by_key);
+      xcfg_tree_create_node(rtti->upd.off, &rtti->rtfi[i], NULL, tree->by_off, tree->by_str);
 
     tree->root.next[i]->prev = &tree->root;
   }
@@ -351,6 +353,23 @@ xcfg_tree_build(xcfg_tree *tree, xcfg_rtti *rtti)
   tree->size = ht_length(tree->by_off);
 
   return XCFG_RET_SUCCESS;
+}
+
+void
+xcfg_tree_dispose(xcfg_tree *tree)
+{
+  xcfg_u32 i;
+
+  if (!tree)
+    return;
+
+  for (i = 0; i < tree->root.nnext; ++i)
+    xcfg_node_destroy(tree->root.next[i]);
+
+  free(tree->root.next);
+
+  ht_destroy(tree->by_off);
+  ht_destroy(tree->by_str);
 }
 
 void
@@ -371,25 +390,6 @@ xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr
     xcfg_node_tvs_populate);
 }
 
-void
-xcfg_tree_dispose(xcfg_tree *tree)
-{
-  xcfg_u32 i;
-
-  if (!tree)
-    return;
-
-  for (i = 0; i < tree->root.nnext; ++i)
-    xcfg_node_destroy(tree->root.next[i]);
-
-  free(tree->root.next);
-
-  ht_destroy(tree->by_off);
-  ht_destroy(tree->by_key);
-
-  memset(tree, 0, sizeof *tree);
-}
-
 static xcfg_ret
 xcfg_node_tvs_do_dump(xcfg_node_tvs *curr, void *data)
 {
@@ -398,7 +398,7 @@ xcfg_node_tvs_do_dump(xcfg_node_tvs *curr, void *data)
     return XCFG_RET_INVALID;
 
   logi(INDENT(".%s (%p)"), INDENTARG(curr->depth),
-    node->rtfi->key, xcfg_node_get_fld_ptr(node, data));
+    node->rtfi->str, xcfg_node_get_fld_ptr(node, data));
 
   return XCFG_RET_SUCCESS;
 }
@@ -423,10 +423,13 @@ xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_off off)
 }
 
 xcfg_node *
-xcfg_tree_get_node_by_key(xcfg_tree *tree, xcfg_str key)
+xcfg_tree_get_node_by_str(xcfg_tree *tree, xcfg_str str)
 {
-  if (!key || !key[0])
+  if (!str)
+    return NULL;
+
+  if (!str[0])
     return &tree->root;
 
-  return (xcfg_node *)(ht_get(tree->by_key, ht_key_str(key)));
+  return (xcfg_node *)(ht_get(tree->by_str, ht_key_str(str)));
 }

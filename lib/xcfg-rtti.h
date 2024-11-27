@@ -33,7 +33,7 @@ struct xcfg_rtti {
 
 struct xcfg_rtfi {
   xcfg_tid tid;
-  xcfg_str key;
+  xcfg_str str;
   xcfg_fld fld;
   xcfg_u08 upd;
 
@@ -46,7 +46,7 @@ struct xcfg_rtfi {
 #define XCFG_RTFI(_tid, base_type, path, upd_id, obj_rtti) \
  { \
   .tid = (_tid), \
-  .key = #path, \
+  .str = #path, \
   .fld = XCFG_FLD(base_type, path), \
   .upd = (upd_id), \
   .obj.rtti = (obj_rtti), \

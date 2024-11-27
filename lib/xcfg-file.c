@@ -214,76 +214,7 @@ xcfg_file_dispose(xcfg_file *file)
 {
   if (!file)
     return;
-}
 
-xcfg_ret
-xcfg_file_set_path(xcfg_file *file, xcfg_str path)
-{
-  char        copy[sizeof(file->path)];
-  xcfg_u32    plen;
-  xcfg_str    temp;
-  xcfg_u32    diff;
-  struct stat st;
-
-  plen = strnlen(path, sizeof(copy));
-  if ((plen) > (sizeof(copy) - 1)) {
-    logi("path exceeded maximum length: %zu", (sizeof(copy) - 1));
-    return XCFG_RET_INVALID;
-  }
-  memcpy(copy, path, plen + 1);
-
-  temp = strrchr(copy, '/');
-  temp = temp ? temp + 1 : copy;
-  /* `temp` is a valid file name here */
-
-  diff = temp - copy;
-  /* `diff` is a valid dir length here */
-
-  if ((plen - diff) > (sizeof(file->name) - 1)) {
-    logi("name exceeded maximum size: %zu", (sizeof(file->name) - 1));
-    return XCFG_RET_INVALID;
-  }
-  memcpy(file->name, temp, (plen - diff + 1));
-
-  if (!diff) {
-    if (!getcwd(file->dir, sizeof file->dir)) {
-      logi("failed to get current working directory");
-      return XCFG_RET_FAILRUE;
-    }
-  } else {
-    *temp = '\0';
-    if (!realpath(copy, file->dir)) {
-      logi("failed to resolve real path for: %s", copy);
-      return XCFG_RET_FAILRUE;
-    }
-  }
-
-  if (!file->dir[0]) {
-    logi("failed to resolve directory for: %s", copy);
-    return XCFG_RET_FAILRUE;
-  }
-
-  if (stat(file->dir, &st)) {
-    logi("failed to get stat for: %s", file->dir);
-    return XCFG_RET_FAILRUE;
-  }
-  if (!(st.st_mode & S_IFDIR)) {
-    logi("'%s' is not a directory", file->dir);
-    return XCFG_RET_FAILRUE;
-  }
-
-  plen = strlen(file->dir);
-  if (file->dir[plen - 1] == '/') {
-    snprintf(file->path, sizeof(file->path), "%s%s", file->dir, file->name);
-  } else {
-    snprintf(file->path, sizeof(file->path), "%s/%s", file->dir, file->name);
-  }
-
-  logi("dir:  %s", file->dir);
-  logi("name: %s", file->name);
-  logi("path: %s", file->path);
-
-  return XCFG_RET_SUCCESS;
 }
 
 static xcfg_ret
@@ -324,27 +255,27 @@ xcfg_node_tvs_do_save(xcfg_node_tvs *curr, xcfg_ptr context)
 xcfg_ret
 xcfg_file_save(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
 {
-  save_ctx save;
-
-  if (!file->path || !file->path[0])
-    return XCFG_RET_INVALID;
-
-  save.data = data;
-  save.stream = fopen(file->path, "w");
-  if (!save.stream)
-    return XCFG_RET_INVALID;
-
-  fseek(save.stream, 0, SEEK_SET);
-  { /* save header */
-    fprintf(save.stream, "0x%x\n",   tree->rtti->size);
-    fprintf(save.stream, "(%s) {\n", tree->rtti->name);
-  }
-  { /* save fields */
-    xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_save, &save);
-  }
-  fclose(save.stream);
-
-  return XCFG_RET_SUCCESS;
+//   save_ctx save;
+//
+//   if (!file->path || !file->path[0])
+//     return XCFG_RET_INVALID;
+//
+//   save.data = data;
+//   save.stream = fopen(file->path, "w");
+//   if (!save.stream)
+//     return XCFG_RET_INVALID;
+//
+//   fseek(save.stream, 0, SEEK_SET);
+//   { /* save header */
+//     fprintf(save.stream, "0x%x\n",   tree->rtti->size);
+//     fprintf(save.stream, "(%s) {\n", tree->rtti->name);
+//   }
+//   { /* save fields */
+//     xcfg_tree_tvs_depth_first(tree, xcfg_node_tvs_do_save, &save);
+//   }
+//   fclose(save.stream);
+//
+//   return XCFG_RET_SUCCESS;
 }
 
 #define logiload(path, line, fmt, args...) \
@@ -377,7 +308,6 @@ xcfg_file_load_impl(xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
     if (line++, !fgets(rbuf, rlen, stream))
       goto out;
 
-    // xcfg_u32_load(t0, &type_size);
     t0 = rbuf;
     if (strncmp(t0, "0x", 2))
       goto out;
@@ -511,180 +441,76 @@ out:
 xcfg_ret
 xcfg_file_load(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
 {
-  return xcfg_file_load_impl(file->path, tree, data);
+  // return xcfg_file_load_impl(file->path, tree, data);
 }
 
-#define IN_EVT_SIZE      (sizeof(struct inotify_event) + NAME_MAX + 1)
-#define IN_EVTS_COUNT    (8)
-#define IN_EVTS_BUF_SIZE (IN_EVTS_COUNT * IN_EVT_SIZE)
+static void
+inotify_on_create(void *data)
+{
+  xcfg_inotify_ctx *ctx = data;
+  logi("created");
+}
+
+static void
+inotify_on_remove(void *data)
+{
+  xcfg_inotify_ctx *ctx = data;
+  logi("removed");
+}
+
+static void
+inotify_on_modify(void *data)
+{
+  xcfg_inotify_ctx *ctx = data;
+  logi("modified");
+}
+
+static inotify_file_ops inotify_ops = {
+  .on_create = inotify_on_create,
+  .on_remove = inotify_on_remove,
+  .on_modify = inotify_on_modify,
+};
 
 static void *
 xcfg_inotify_routine(void *arg)
 {
-  xcfg_inotify *inotify = arg;
-  xcfg_u32      rlen = IN_EVTS_BUF_SIZE;
-  xcfg_u08     *rbuf, *temp;
-  ssize_t       rgot;
+  xcfg_inotify *monitor = arg;
+  int ret;
 
-  struct inotify_event *e;
-
-  rbuf = calloc(rlen, sizeof *rbuf);
-  if (!rbuf) {
-    logi("failed to allocated aligned buffer for inotify events");
-    return NULL;
+  while (monitor->alive) {
+    ret = inotify_file_execute(&monitor->in, &monitor->ctx);
+    if (ret < 0)
+      break;
+    
+    usleep(250 * 1000);
   }
 
-  while (inotify->alive) {
-    rgot = read(inotify->fd, rbuf, rlen);
-    if (rgot < 0 && errno != EAGAIN)
-      goto out;
-
-    if (rgot <= 0)
-      continue;
-
-    for (temp  = rbuf;
-         temp  < rbuf + rgot;
-         temp += sizeof(*e) + e->len
-    ) {
-      e = (struct inotify_event *)(temp);
-
-      if (e->wd == inotify->dir.wd) {
-        if (e->mask & IN_DELETE_SELF) {
-          inotify->dir.wd = -1;
-          logi("[inotify.dir] self stopped");
-          goto out;
-        }
-        if (e->mask & (IN_CREATE | IN_MOVED_TO)) {
-          xcfg_ret ret;
-
-          if (strcmp(e->name, inotify->file.name))
-            continue;
-
-          if (inotify->file.wd < 0)
-            inotify->file.wd = inotify_add_watch(inotify->fd, inotify->file.path, IN_OPEN | IN_MODIFY | IN_CLOSE);
-
-          logi("[inotify.dir] file-monitor started. syncing...");
-          ret = xcfg_file_load_impl(inotify->file.path, inotify->tree, inotify->data);
-          if (ret < 0)
-            logi("[inotify.dir] sync failed: %d", ret);
-
-          continue;
-        }
-        if (e->mask & (IN_DELETE | IN_MOVED_FROM)) {
-          if (strcmp(e->name, inotify->file.name))
-            continue;
-
-          inotify_rm_watch(inotify->fd, inotify->file.wd);
-          inotify->file.wd = -1;
-          logi("[inotify.dir] file-monitor stopped");
-          continue;
-        }
-        continue;
-      }
-      if (e->wd == inotify->file.wd) {
-        if (e->mask & IN_OPEN) {
-          inotify->file.opened = true;
-          continue;
-        }
-        if (e->mask & IN_MODIFY) {
-          inotify->file.modified = true;
-          continue;
-        }
-        if (e->mask & IN_CLOSE) {
-          if (inotify->file.modified) {
-            xcfg_ret ret;
-
-            logi("[inotify.file] modified. syncing... ");
-            ret = xcfg_file_load_impl(inotify->file.path, inotify->tree, inotify->data);
-            if (ret < 0)
-              logi("[inotify.dir] sync failed: %d", ret);
-          }
-
-          inotify->file.opened   = false;
-          inotify->file.modified = false;
-          continue;
-        }
-        continue;
-      }
-    }
-  }
-
-out:
-  free(rbuf);
+  monitor->alive = false;
   return NULL;
 }
 
 xcfg_ret
-xcfg_file_monitor(xcfg_file *file, xcfg_tree *tree, xcfg_ptr data)
+xcfg_file_monitor(xcfg_file *file, xcfg_str path, xcfg_tree *tree, xcfg_ptr data)
 {
-  xcfg_inotify *inotify = &file->inotify;
-  struct stat   st;
+  xcfg_inotify *monitor = &file->monitor;
+  int ret;
 
-  if (!data) {
-    logi("couldn't start monitor: data is null");
-    return XCFG_RET_INVALID;
-  }
+  ret = inotify_file_setup(&monitor->in, &inotify_ops, path);
+  if (ret < 0)
+    return XCFG_RET_FAILRUE;
 
-  if (!(file->dir[0])
-   ||  (stat(file->dir, &st))
-   || !(st.st_mode & S_IFDIR)
-  ) {
-    logi("couldn't start monitor: invalid dir name");
+  monitor->ctx.tree = tree;
+  monitor->ctx.data = data;
+
+  monitor->tid   = -1;
+  monitor->alive = true;
+  ret = pthread_create(&monitor->tid, NULL, xcfg_inotify_routine, monitor);
+  if (ret < 0) {
+    monitor->tid   = -1;
+    monitor->alive = false;
+    inotify_file_dispose(&monitor->in);
     return XCFG_RET_FAILRUE;
   }
-
-  if (!file->name[0]) {
-    logi("couldn't start monitor: invalid file name");
-    return XCFG_RET_FAILRUE;
-  }
-
-  if (!file->path[0]) {
-    logi("couldn't start monitor: invalid file path");
-    return XCFG_RET_FAILRUE;
-  }
-
-  inotify->fd        = -1;
-  inotify->tid       = -1;
-  inotify->tree      = tree;
-  inotify->data      = data;
-  inotify->dir.wd    = -1;
-  inotify->dir.path  = file->dir;
-  inotify->file.wd   = -1;
-  inotify->file.name = file->name;
-  inotify->file.path = file->path;
-
-  inotify->fd = inotify_init();
-  if (inotify->fd < 0) {
-    logi("failed to init inotify");
-    return XCFG_RET_FAILRUE;
-  }
-  inotify->dir.wd = inotify_add_watch(inotify->fd, inotify->dir.path,
-    IN_DELETE_SELF                /* event  used to stop self                  */
-    | (IN_CREATE | IN_MOVED_TO)   /* events used to start file-monitor         */
-    | (IN_DELETE | IN_MOVED_FROM) /* events used to stop  file-monitor         */
-    | (IN_ONLYDIR)                /* interested only in directory              */
-    | (IN_EXCL_UNLINK)            /* not interested in children that moved out */
-  );
-  if (inotify->dir.wd < 0) {
-    logi("[inotify.dir] failed to add watch for: %s", file->dir);
-    return XCFG_RET_FAILRUE;
-  }
-
-  if (!(stat(file->path, &st))
-   &&  ((st.st_mode & S_IFREG) || (st.st_mode & S_IFLNK))
-  ) {
-    inotify->file.wd = inotify_add_watch(inotify->fd, inotify->file.path,
-      IN_OPEN | IN_MODIFY | IN_CLOSE
-    );
-    if (inotify->file.wd < 0) {
-      logi("[inotify.file] failed to add watch for: %s", file->path);
-      return XCFG_RET_FAILRUE;
-    }
-  }
-
-  inotify->alive = true;
-  pthread_create(&inotify->tid, NULL, xcfg_inotify_routine, inotify);
-  pthread_join(inotify->tid, NULL);
 
   return XCFG_RET_SUCCESS;
 }

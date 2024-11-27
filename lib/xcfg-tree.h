@@ -11,7 +11,7 @@ typedef struct xcfg_node xcfg_node;
 struct xcfg_node {
   xcfg_rtfi *rtfi; /* reference to field info */
 
-  xcfg_str data_fld_key; /* full path to field inside config structure          */
+  xcfg_str data_fld_str; /* full path to field inside config structure          */
   xcfg_u32 data_fld_off; /* full offset to field inside config structure        */
   xcfg_u32 data_upd_off; /* full offset to update field inside config structure */
 
@@ -52,7 +52,6 @@ xcfg_node_set_value(xcfg_node *node, xcfg_ptr data, xcfg_ptr pval);
 xcfg_ret
 xcfg_node_get_value(xcfg_node *node, xcfg_ptr data, xcfg_ptr pval);
 
-
 typedef struct ht_ctx    ht_ctx;
 typedef struct xcfg_tree xcfg_tree;
 struct xcfg_tree {
@@ -61,17 +60,17 @@ struct xcfg_tree {
   xcfg_node  root; /* proxy field node for `.rtti` */
   xcfg_u32   size;
   ht_ctx    *by_off;
-  ht_ctx    *by_key;
+  ht_ctx    *by_str;
 };
 
 xcfg_ret
 xcfg_tree_build(xcfg_tree *tree, xcfg_rtti *rtti);
 
 void
-xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr context);
+xcfg_tree_dispose(xcfg_tree *tree);
 
 void
-xcfg_tree_dispose(xcfg_tree *tree);
+xcfg_tree_tvs_depth_first(xcfg_tree *tree, xcfg_node_tvs_visit_f visit, xcfg_ptr context);
 
 void
 xcfg_tree_dump(xcfg_tree *tree, xcfg_ptr data);
@@ -80,6 +79,6 @@ xcfg_node *
 xcfg_tree_get_node_by_off(xcfg_tree *tree, xcfg_off off);
 
 xcfg_node *
-xcfg_tree_get_node_by_key(xcfg_tree *tree, xcfg_str key);
+xcfg_tree_get_node_by_str(xcfg_tree *tree, xcfg_str str);
 
 #endif//__XCFG_TREE_H__

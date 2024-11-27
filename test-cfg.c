@@ -33,6 +33,18 @@ DECL_XCFG_RTTI(_test_cfg,
   XCFG_RTFI_VAL(XCFG_TID_u08, struct test_cfg, fake.val, TEST_CFG_UPD_FAKE_VAL),
 );
 
+struct test_cfg *
+test_cfg_create()
+{
+  struct test_cfg *cfg;
+
+  cfg = calloc(1, sizeof *cfg);
+  if (!cfg)
+    return NULL;
+
+  return cfg;
+}
+
 void
 test_cfg_dispose(struct test_cfg *cfg)
 {
@@ -40,7 +52,7 @@ test_cfg_dispose(struct test_cfg *cfg)
     return;
 
   free(cfg->type._str);
-  memset(cfg, 0, sizeof *cfg);
+  cfg->type._str = NULL;
 }
 
 void
@@ -53,10 +65,14 @@ test_cfg_destroy(struct test_cfg *cfg)
   free(cfg);
 }
 
+
 xcfg *
 test_cfg_xcreate(test_cfg_on_update on_update)
 {
-  return xcfg_create(&_test_cfg,
-                     (xcfg_on_update)(on_update),
-                     (xcfg_on_dispose)(test_cfg_dispose));
+  xcfg_cbs ops = {
+    .on_create  = (__typeof__(ops.on_create))  (test_cfg_create),
+    .on_destroy = (__typeof__(ops.on_destroy)) (test_cfg_destroy),
+    .on_update  = (__typeof__(ops.on_update))  (on_update)
+  };
+  return xcfg_create(ops, &_test_cfg);
 }

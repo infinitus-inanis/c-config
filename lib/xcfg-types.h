@@ -145,6 +145,9 @@ typedef uintptr_t xcfg_off;
 #define XCFG_TID(sfx) CONCATENATE(XCFG_TID_, sfx)
 
 typedef enum {
+  XCFG_TID(ANY)   = -2,
+  XCFG_TID(INVAL) = -1,
+
 #define XCFG_SFX_DO_EXPAND(sfx) \
   XCFG_TID(sfx),
 
@@ -156,6 +159,15 @@ typedef enum {
 
 xcfg_str
 xcfg_tid2sfx(xcfg_tid tid);
+
+xcfg_str
+xcfg_tid2type(xcfg_tid tid);
+
+xcfg_tid
+xcfg_sfx2tid(xcfg_str sfx);
+
+xcfg_tid
+xcfg_type2tid(xcfg_str type);
 
 
 /*****************************
@@ -182,11 +194,11 @@ typedef struct xcfg_rtfi xcfg_rtfi;
 /* Main config context handle */
 typedef struct xcfg xcfg;
 
-/* Dispose method for underlying config structure */
-typedef void (* xcfg_on_dispose)(xcfg_ptr cfg);
-
-/* Callback for when underlying config is updated */
-typedef void (* xcfg_on_update)(xcfg_ptr cfg, xcfg_ptr data);
+typedef struct {
+  void * (* on_create)  ();
+  void   (* on_destroy) (void *cfg);
+  void   (* on_update)  (void *cfg, void *udata);
+} xcfg_cbs;
 
 XCFG_EXPORT_LEAVE
 

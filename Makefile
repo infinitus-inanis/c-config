@@ -10,21 +10,23 @@ CFG_DIR = lib
 CFG_LIB = $(CFG_DIR)/libxcfg.a
 
 CFG_DEP = \
-	$(CFG_DIR)/utils/hashtable.h \
-	$(CFG_DIR)/utils/traverse.h  \
-	$(CFG_DIR)/xcfg-utils.h      \
-	$(CFG_DIR)/xcfg-types.h      \
-	$(CFG_DIR)/xcfg-rtti.h       \
-	$(CFG_DIR)/xcfg-tree.h       \
-	$(CFG_DIR)/xcfg-file.h       \
+	$(CFG_DIR)/utils/hashtable.h    \
+	$(CFG_DIR)/utils/traverse.h     \
+	$(CFG_DIR)/utils/inotify-file.h \
+	$(CFG_DIR)/utils/file-monitor.h \
+	$(CFG_DIR)/xcfg-utils.h         \
+	$(CFG_DIR)/xcfg-types.h         \
+	$(CFG_DIR)/xcfg-rtti.h          \
+	$(CFG_DIR)/xcfg-tree.h          \
 	$(CFG_DIR)/xcfg-api.h
 
 CFG_OBJ = \
-	$(CFG_DIR)/utils/hashtable.o \
-	$(CFG_DIR)/utils/traverse.o  \
-	$(CFG_DIR)/xcfg-types.o      \
-	$(CFG_DIR)/xcfg-tree.o       \
-	$(CFG_DIR)/xcfg-file.o       \
+	$(CFG_DIR)/utils/hashtable.o    \
+	$(CFG_DIR)/utils/traverse.o     \
+	$(CFG_DIR)/utils/inotify-file.o \
+	$(CFG_DIR)/utils/file-monitor.o \
+	$(CFG_DIR)/xcfg-types.o         \
+	$(CFG_DIR)/xcfg-tree.o          \
 	$(CFG_DIR)/xcfg-api.o
 
 CFG_CCF = -I$(CFG_DIR)
@@ -36,8 +38,8 @@ $(CFG_LIB): $(CFG_OBJ)
 	$(AR) rcs $@ $^
 
 TEST_BIN = test
-TEST_DEP = test-cfg.h
-TEST_OBJ = test-cfg.o test.o
+TEST_DEP = sig-thread.h test-cfg.h
+TEST_OBJ = sig-thread.o test-cfg.o test.o
 TEST_CCF = -I. -L. -l:$(CFG_LIB) $(CFG_CCF)
 
 %.o: %.c $(TEST_DEP)
