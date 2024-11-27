@@ -45,4 +45,10 @@ XCFG_GET(XCFG_SFX_ptr)(xcfg *cfg, xcfg_key key, xcfg_ptr pptr);
 xcfg_ret
 XCFG_GET(XCFG_SFX_obj)(xcfg *cfg, xcfg_key key, xcfg_obj obj);
 
+void
+xcfg_notify_update_unlocked(xcfg *cfg);
+
+void
+xcfg_notify_update(xcfg *cfg);
+
 #endif//__XCFG_API_DATA_H__

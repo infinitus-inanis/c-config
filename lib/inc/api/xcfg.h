@@ -11,9 +11,6 @@ xcfg_create(xcfg_cbs cbs, xcfg_rtti *rtti);
 void
 xcfg_destroy(xcfg *cfg);
 
-xcfg_ret
-xcfg_update_notify(xcfg *cfg, void *udata);
-
 void
 xcfg_dump(xcfg *cfg);
 

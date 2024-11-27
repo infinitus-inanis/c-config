@@ -52,9 +52,9 @@ on_signal(siginfo_t *info, void *data)
 }
 
 static void
-on_update(struct test_cfg *cfg, void *data)
+on_update(struct test_cfg *cfg)
 {
-  test_cfg_dump((char *)(data), cfg);
+  test_cfg_dump("cfg_data", cfg);
 }
 
 int main() {
@@ -63,7 +63,7 @@ int main() {
   bool                   sig_alive = false;
 
   xcfg            *cfg;
-  struct test_cfg *cfg_data, tmp_data;
+  struct test_cfg  tmp_data;
   struct type_obj  obj_data;
   xcfg_str         cfg_path = "test.cfg";
 
@@ -82,7 +82,6 @@ int main() {
     logi("test_cfg_xcreate failure");
     return 1;
   }
-  cfg_data = xcfg_get_data(cfg);
 
   if (1) { logi("test (by_off)");
     if (1) { logi("test (set_by_off)...");
@@ -107,7 +106,7 @@ int main() {
       ret |= xcfg_set_obj(cfg, test_cfg_key_off(type._obj), &obj_data);
       obj_data.huh = 69;
 
-      xcfg_update_notify(cfg, "cfg_data");
+      xcfg_notify_update(cfg);
       if (ret != XCFG_RET_SUCCESS) {
         logi("...failure: %d", ret);
         goto error;
@@ -173,7 +172,7 @@ int main() {
         goto error;
       }
       logi("...success");
-      xcfg_update_notify(cfg, "cfg_data");
+      xcfg_notify_update(cfg);
     } /* set_by_key */
     if (1) { logi("test (get_by_key)...");
       /* signed   */
@@ -206,7 +205,7 @@ int main() {
   } /* by_key */
 
   if (1) { logi("test (file)");
-    if (0) { logi("test (save_file)...");
+    if (1) { logi("test (save_file)...");
       ret |= xcfg_save_file(cfg, cfg_path);
 
       if (ret != XCFG_RET_SUCCESS) {
@@ -215,7 +214,7 @@ int main() {
       }
       logi("...success");
     } /* save_file */
-    if (0) { logi("test (load_file)...");
+    if (1) { logi("test (load_file)...");
       ret |= xcfg_load_file(cfg, cfg_path);
 
       if (ret != XCFG_RET_SUCCESS) {
@@ -223,7 +222,6 @@ int main() {
         goto error;
       }
       logi("...success");
-      test_cfg_dump("cfg_data", cfg_data);
     } /* load_file */
     if (1) { logi("test (monitor_file)...");
       sig_alive = true;

@@ -108,9 +108,6 @@ xcfg_node_raise_upd(xcfg_node *node, xcfg_ptr data)
     if (!upd)
       continue;
 
-    if (XCFG_UPD_IS_SET(*upd, node->rtfi->upd))
-      break;
-
     *upd |= XCFG_UPD(node->rtfi->upd);
   } while ((node = node->prev));
 }

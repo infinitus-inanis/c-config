@@ -121,3 +121,20 @@ XCFG_GET(XCFG_SFX_ptr)(xcfg *cfg, xcfg_key key, xcfg_ptr pptr)
 xcfg_ret
 XCFG_GET(XCFG_SFX_obj)(xcfg *cfg, xcfg_key key, xcfg_obj obj)
 { return do_get_by_key(cfg, &key, XCFG_TID(XCFG_SFX_obj), (xcfg_ptr)(obj)); }
+
+void
+xcfg_notify_update_unlocked(xcfg *cfg)
+{
+  if (!cfg->cbs.on_update)
+    return;
+  
+  cfg->cbs.on_update(cfg->data);
+}
+
+void
+xcfg_notify_update(xcfg *cfg)
+{
+  pthread_mutex_lock(&cfg->data_mutex);
+  xcfg_notify_update_unlocked(cfg);
+  pthread_mutex_unlock(&cfg->data_mutex);
+}

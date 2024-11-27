@@ -70,19 +70,6 @@ xcfg_destroy(xcfg *cfg)
   free(cfg);
 }
 
-xcfg_ret
-xcfg_update_notify(xcfg *cfg, void *udata)
-{
-  if (!cfg->cbs.on_update)
-    return XCFG_RET_SUCCESS;
-
-  pthread_mutex_lock(&cfg->data_mutex);
-  cfg->cbs.on_update(cfg->data, udata);
-  pthread_mutex_unlock(&cfg->data_mutex);
-
-  return XCFG_RET_SUCCESS;
-}
-
 void
 xcfg_dump(xcfg *cfg)
 {

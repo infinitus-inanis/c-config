@@ -197,7 +197,7 @@ typedef struct xcfg xcfg;
 typedef struct {
   void * (* on_create)  ();
   void   (* on_destroy) (void *cfg);
-  void   (* on_update)  (void *cfg, void *udata);
+  void   (* on_update)  (void *cfg);
 } xcfg_cbs;
 
 /* Type of a key for search */
